@@ -62,6 +62,25 @@ class Settings(BaseSettings):
     magic_link_ttl_minutes: int = Field(default=15, ge=1, le=60)
     session_ttl_days: int = Field(default=14, ge=1, le=90)
 
+    # ------------------------------------------------------------ features --
+    # A destination is advertised as available only when it actually works.
+    # docs/12_BETA_CHECKLIST.md requires "no dead buttons", so each flag stays
+    # false until the phase that builds the flow turns it on.
+    #
+    # Health matching arrives in Phases 4-9; the policy decoder in Phases
+    # 10-13. Motor is architecturally supported but must not be enabled until
+    # the health engine and motor data are ready
+    # (docs/13_DECISIONS_AND_OPEN_ITEMS.md open item 8).
+    feature_health_recommendation: bool = False
+    feature_motor_recommendation: bool = False
+    feature_policy_decoder: bool = False
+
+    #: Serve clearly-labelled synthetic modules on the returning-user home so
+    #: the layout can be reviewed before the real data exists
+    #: (docs/11_BUILD_PLAN.md Phase 3: "Use mock data first"). Refused outside
+    #: local and preview: demo data must never look like a real record.
+    home_demo_data: bool = False
+
     @field_validator("log_level")
     @classmethod
     def _normalize_log_level(cls, value: str) -> str:
@@ -98,6 +117,12 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 f"DATABASE_URL must be set explicitly when APP_ENV={self.app_env}; "
                 "the local development default is not usable outside APP_ENV=local."
+            )
+        if self.home_demo_data and self.app_env not in ("local", "preview"):
+            raise RuntimeError(
+                f"HOME_DEMO_DATA cannot be enabled when APP_ENV={self.app_env}. "
+                "Synthetic modules are for layout review only and must never be "
+                "shown to beta users as though they were real records."
             )
 
 

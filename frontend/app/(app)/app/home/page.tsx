@@ -1,9 +1,10 @@
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { InlineAlert } from "@/components/feedback/inline-alert";
+import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/layout/page-header";
-import { Card } from "@/components/ui/card";
-import { requireUser } from "@/lib/auth/session";
+import { DemoDataNotice } from "@/features/home/demo-data-notice";
+import { NewUserHome } from "@/features/home/new-user-home";
+import { ReturningHome } from "@/features/home/returning-home";
+import { getHomeSummary } from "@/lib/auth/home";
 
 export const metadata = {
   title: "Home — AI Insurance Decision Platform",
@@ -12,41 +13,46 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Placeholder home.
+ * The signed-in home.
  *
- * The real new-user and returning-user home screens in
- * docs/02_UX_UI_SPEC.md sections 5 and 6 are Phase 3. This page exists so that
- * Phase 2 has a protected destination to protect, and deliberately makes no
- * product claim and offers no feature that does not exist.
+ * A user with no activity sees the new-user home; a user with activity sees
+ * their own. Which one is decided by the API summary, not guessed at here.
  */
 export default async function HomePage() {
-  const user = await requireUser();
+  const result = await getHomeSummary();
+
+  if (result.status === "error") {
+    return (
+      <PageContainer width="reading">
+        <ErrorState
+          title="We couldn't load your home screen"
+          description={result.error.message}
+          code={result.error.code}
+          {...(result.error.requestId !== null ? { requestId: result.error.requestId } : {})}
+        />
+      </PageContainer>
+    );
+  }
+
+  const summary = result.data;
 
   return (
-    <PageContainer width="reading">
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="You're signed in"
-          description="Your session is active. The product home screen is built in the next phase."
-          actions={<SignOutButton />}
-        />
+    <PageContainer>
+      <div className="flex flex-col gap-8">
+        {summary.dataMode === "DEMO" ? <DemoDataNotice /> : null}
 
-        <Card>
-          <div className="flex flex-col gap-2">
-            <h2 className="text-h3 font-medium text-primary">Account</h2>
-            <p className="text-support text-secondary">
-              Signed in as <span className="text-primary">{user.email}</span>
-            </p>
-            <p className="text-support text-secondary">
-              Beta access: {user.betaAccess ? "active" : "inactive"}
-            </p>
-          </div>
-        </Card>
+        {summary.isNewUser ? (
+          <NewUserHome features={summary.features} />
+        ) : (
+          <ReturningHome summary={summary} />
+        )}
 
-        <InlineAlert tone="info" title="Nothing to do here yet">
-          Finding insurance and understanding an existing policy are built in later phases. No
-          insurance data exists in this build.
-        </InlineAlert>
+        <footer className="flex items-center justify-between gap-4 border-t border-border pt-6">
+          <p className="text-meta text-secondary">
+            Invite-only beta. No insurance data is shown that the product cannot support.
+          </p>
+          <SignOutButton />
+        </footer>
       </div>
     </PageContainer>
   );

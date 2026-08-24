@@ -39,6 +39,69 @@ export type MagicLinkResponse = {
   status: string;
 };
 
+// ---------------------------------------------------------------- home ----
+
+/** Whether a destination actually works, so the UI never offers a dead action. */
+export type Availability = "AVAILABLE" | "COMING_SOON";
+
+/** REAL: the user's own data. DEMO: clearly-labelled synthetic layout data. */
+export type DataMode = "REAL" | "DEMO";
+
+export type FeatureAvailability = {
+  healthRecommendation: Availability;
+  motorRecommendation: Availability;
+  policyDecoder: Availability;
+};
+
+export type ContinueAction = {
+  kind: "RESUME_QUESTIONNAIRE" | "VIEW_RECOMMENDATION" | "VIEW_POLICY";
+  label: string;
+  href: string;
+  context: string | null;
+  updatedAt: string | null;
+};
+
+export type RecommendationSummary = {
+  id: string;
+  domain: "HEALTH" | "MOTOR";
+  matchCount: number;
+  createdAt: string;
+  href: string;
+};
+
+export type PolicySummary = {
+  id: string;
+  displayName: string;
+  status: string;
+  createdAt: string;
+  href: string;
+};
+
+export type ClaimsChecklistSummary = {
+  id: string;
+  policyDisplayName: string;
+  completedItems: number;
+  totalItems: number;
+  href: string;
+};
+
+export type HouseholdSummary = { memberCount: number; href: string };
+
+export type VehicleSummary = { count: number; href: string };
+
+/** `GET /api/v1/home` */
+export type HomeSummary = {
+  isNewUser: boolean;
+  dataMode: DataMode;
+  features: FeatureAvailability;
+  continueAction: ContinueAction | null;
+  recommendations: RecommendationSummary[];
+  policies: PolicySummary[];
+  claimsChecklist: ClaimsChecklistSummary | null;
+  household: HouseholdSummary | null;
+  vehicles: VehicleSummary | null;
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";

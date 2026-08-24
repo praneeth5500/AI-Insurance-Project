@@ -117,6 +117,39 @@ in the data model document, or tell me how you would rather they be shaped.
 clears the cookie, and is idempotent. Flagged so the contracts document can be
 updated deliberately rather than drifting.
 
+## 11. Phase 3 has no "Done when" section — Phase 3
+
+Every other phase in `docs/11_BUILD_PLAN.md` ends with acceptance criteria.
+Phase 3 lists what to build and stops.
+
+**Impact:** no agreed bar for when the home screen is finished.
+**Handled by** holding Phase 3 to `CLAUDE.md`'s own definition of done plus the
+two home sections of the specification; the resulting checklist is in
+`docs/PHASE_3_NOTES.md`. Please confirm it matches what you intended.
+
+## 12. Analytics events: `CLAUDE.md` and the build plan disagree on timing
+
+`CLAUDE.md`'s definition of done requires "analytics event exists where
+specified", and `docs/03_FRONTEND_ARCHITECTURE.md` section 7 specifies
+`home_viewed` for this screen. But `docs/11_BUILD_PLAN.md` sequences all
+analytics at Phase 15.
+
+**Impact:** every phase from 3 onwards either builds an analytics pipeline
+early or ships without the specified event.
+**Not resolved.** Phase 3 followed the build plan and did not implement
+`home_viewed`. Either the build plan should move analytics earlier, or
+`CLAUDE.md`'s definition of done should say "from Phase 15 onwards".
+
+## 13. `GET /api/v1/home` is not in the API contracts — Phase 3 (implemented)
+
+`docs/08_API_CONTRACTS.md` begins at the questionnaire and defines nothing for
+the home screen, which `docs/11_BUILD_PLAN.md` Phase 3 requires.
+
+**Resolved by adding** `GET /api/v1/home`, returning feature availability, a
+nullable continue action, and the conditional modules from
+`docs/01_PRODUCT_SPEC.md` section 5. Flagged so the contracts document can be
+updated deliberately.
+
 ---
 
 ## Resolved in Phase 0
@@ -162,3 +195,14 @@ The specification says access is invite-only but not how an invite is created.
 Implemented as the smallest mechanism that works — a configured address list
 applied by an operator running `make seed-allowlist` — and flagged for a
 product decision rather than guessed at.
+
+## Resolved in Phase 3
+
+### Advertising destinations that are not built
+
+`docs/02_UX_UI_SPEC.md` section 5 specifies three product cards on the
+new-user home, but none of their flows exist before Phase 4, and
+`docs/12_BETA_CHECKLIST.md` requires no dead buttons. Resolved by rendering
+every card as specified while showing its action only once the flow works,
+driven by per-feature configuration. Motor stays off by default per open
+item 8. Details in `docs/PHASE_3_NOTES.md`.

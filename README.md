@@ -47,6 +47,7 @@ predicted. See `docs/06_RECOMMENDATION_ENGINE.md` section 3.
 Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_1_NOTES.md`](docs/PHASE_1_NOTES.md) ·
 [`docs/PHASE_2_NOTES.md`](docs/PHASE_2_NOTES.md) ·
+[`docs/PHASE_3_NOTES.md`](docs/PHASE_3_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -58,7 +59,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 0 — Repository foundation | ✅ Complete |
 | 1 — Design system | ✅ Complete |
 | 2 — Beta auth | ✅ Complete |
-| 3–17 | ⬜ Not started |
+| 3 — Home | ✅ Complete |
+| 4–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -96,6 +98,10 @@ make seed-allowlist
 In local development, magic links are written to
 `backend/.dev-magic-links.log` instead of being emailed. Open the link from
 there to sign in.
+
+To review the returning-user home before real activity exists, set
+`HOME_DEMO_DATA=true`. It serves clearly-labelled synthetic modules and is
+refused outside `local` and `preview`.
 
 `NEXT_PUBLIC_API_BASE_URL` is inlined into the frontend at **build** time, and
 the API and app must be same-site for the session cookie to be sent.
@@ -145,3 +151,7 @@ make test
 - **Sign-in tokens are stored only as digests**, are single-use, and expire.
   Sessions are revocable rows, not self-contained tokens.
 - **Auth responses never reveal who is on the beta allowlist.**
+- **Nothing is advertised that does not work.** Each destination is gated by a
+  `FEATURE_*` flag and shows "Coming soon" until its flow exists.
+- **Synthetic content is always labelled** and cannot be enabled outside local
+  and preview.

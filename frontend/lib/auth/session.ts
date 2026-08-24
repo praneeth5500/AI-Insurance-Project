@@ -17,26 +17,34 @@ import type { CurrentUser } from "@/lib/api/types";
  */
 export const SESSION_COOKIE_NAME = "insurance_session";
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+/**
+ * Call the API as the signed-in user, forwarding the session cookie.
+ *
+ * Returns null when there is no session or the request fails, so callers must
+ * decide what to render — a protected page fails closed rather than pretending.
+ */
+export async function fetchAsUser(path: string): Promise<Response | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE_NAME);
   if (!session) return null;
 
   try {
-    const response = await fetch(`${apiBaseUrl()}/api/v1/me`, {
+    return await fetch(`${apiBaseUrl()}${path}`, {
       headers: {
         Accept: "application/json",
         Cookie: `${SESSION_COOKIE_NAME}=${session.value}`,
       },
       cache: "no-store",
     });
-    if (!response.ok) return null;
-    return (await response.json()) as CurrentUser;
   } catch {
-    // API unreachable. Treated as "not signed in" so a protected page fails
-    // closed rather than rendering as though the user were authenticated.
     return null;
   }
+}
+
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const response = await fetchAsUser("/api/v1/me");
+  if (response === null || !response.ok) return null;
+  return (await response.json()) as CurrentUser;
 }
 
 /** Require a session, or send the visitor to sign in. */
