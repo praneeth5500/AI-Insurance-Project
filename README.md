@@ -45,6 +45,7 @@ predicted. See `docs/06_RECOMMENDATION_ENGINE.md` section 3.
 | 13 | [Decisions & open items](docs/13_DECISIONS_AND_OPEN_ITEMS.md) |
 
 Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
+[`docs/PHASE_1_NOTES.md`](docs/PHASE_1_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -54,7 +55,7 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | Phase | Status |
 |---|---|
 | 0 — Repository foundation | ✅ Complete |
-| 1 — Design system | ⬜ Not started |
+| 1 — Design system | ✅ Complete |
 | 2–17 | ⬜ Not started |
 
 ## Repository layout
@@ -97,6 +98,9 @@ Verify:
 curl http://localhost:8000/health/live     # {"status":"ok"}
 curl http://localhost:8000/health/ready    # 200 with DB up, 503 with DB down
 ```
+
+The component showcase is at
+[localhost:3000/design-system](http://localhost:3000/design-system).
 
 ## Checks
 

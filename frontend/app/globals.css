@@ -1,9 +1,171 @@
 @import "tailwindcss";
 
-/*
- * Phase 0 contains no design tokens on purpose.
- *
- * The colour, typography, shape and motion system in docs/02_UX_UI_SPEC.md is
- * Phase 1 work, and its colours still need contrast validation before they are
- * finalised. Defining them here early would freeze unvalidated values.
- */
+/* ==========================================================================
+   Design tokens — docs/02_UX_UI_SPEC.md section 2
+   ==========================================================================
+
+   The raw token names below match the specification exactly, so the spec
+   stays the readable source of truth. They are re-exported into Tailwind's
+   theme underneath, which is what generates the utility classes.
+
+   Contrast was validated against WCAG 2.1 before these were finalised
+   (the spec asks for this explicitly). Results and the two constrained
+   usages are recorded in docs/PHASE_1_NOTES.md and enforced by
+   tests/tokens-contrast.test.ts.
+
+   Dark mode is deferred (docs/13_DECISIONS_AND_OPEN_ITEMS.md), so there is
+   deliberately no dark palette here.
+   ========================================================================== */
+
+:root {
+  --bg: #f7f7f4;
+  --surface: #ffffff;
+  --text-primary: #171717;
+  --text-secondary: #676767;
+  --border: #e7e7e2;
+
+  --accent: #4856d6;
+  --accent-soft: #eef0ff;
+
+  --positive: #17795d;
+  --positive-soft: #eaf7f2;
+
+  --attention: #a56500;
+  --attention-soft: #fff5dd;
+
+  --critical: #b42318;
+  --critical-soft: #fdedec;
+
+  /* Boundary of an interactive control.
+     --border is 1.24:1 on --surface: correct for the "subtle border" the spec
+     asks for on decorative edges, but below the 3:1 that WCAG 1.4.11 requires
+     when a boundary is the only thing identifying a control. Form controls
+     therefore use --text-secondary (5.66:1). See docs/PHASE_1_NOTES.md. */
+  --control-border: var(--text-secondary);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-border: var(--border);
+  --color-control-border: var(--control-border);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-attention: var(--attention);
+  --color-attention-soft: var(--attention-soft);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Type scale — docs/02_UX_UI_SPEC.md section 2.
+     Each step pairs a size with a line height suited to it. */
+  --text-hero: 3rem; /* 48px  — desktop hero (fluid up to 64) */
+  --text-hero--line-height: 1.05;
+  --text-hero-mobile: 2.25rem; /* 36px */
+  --text-hero-mobile--line-height: 1.1;
+  --text-h1: 2.25rem; /* 36px */
+  --text-h1--line-height: 1.15;
+  --text-h2: 1.75rem; /* 28px */
+  --text-h2--line-height: 1.2;
+  --text-h3: 1.25rem; /* 20px */
+  --text-h3--line-height: 1.3;
+  --text-body: 1rem; /* 16px */
+  --text-body--line-height: 1.6;
+  --text-body-lg: 1.125rem; /* 18px */
+  --text-body-lg--line-height: 1.6;
+  --text-support: 0.875rem; /* 14px */
+  --text-support--line-height: 1.5;
+  --text-meta: 0.8125rem; /* 13px */
+  --text-meta--line-height: 1.45;
+
+  /* Shape — "card radius ~12–16px; avoid pill-shaped everything" */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-sheet: 18px;
+
+  /* Restrained shadows */
+  --shadow-card: 0 1px 2px rgb(23 23 23 / 0.04);
+  --shadow-raised: 0 4px 16px rgb(23 23 23 / 0.08);
+  --shadow-overlay: 0 16px 48px rgb(23 23 23 / 0.16);
+
+  /* Motion — 160–240ms, purposeful only */
+  --duration-fast: 160ms;
+  --duration-base: 200ms;
+  --duration-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0.15, 1);
+
+  /* Minimum touch target (docs/02_UX_UI_SPEC.md section 15) */
+  --spacing-touch: 44px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Tabular numerals: the product shows a lot of money and dates. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One visible focus treatment everywhere (accessibility requirement:
+     "visible focus"). 3:1 against --bg is satisfied by --accent at 5.47:1. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Only remove the ring for pointer users who did not focus deliberately. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--text-primary);
+  }
+}
+
+@layer utilities {
+  /* Screen-reader-only text, used for status messages and control labels. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+/* Reduced-motion respect (docs/02_UX_UI_SPEC.md section 16).
+   Motion is decoration in this product; nothing depends on it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

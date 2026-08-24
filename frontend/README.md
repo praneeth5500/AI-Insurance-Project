@@ -2,11 +2,12 @@
 
 Next.js (App Router) + React + TypeScript strict + Tailwind CSS.
 
-## Phase 0 status
+## Phase 1 status
 
-Only the shell exists. `app/page.tsx` is a **developer status page**, not the
-product home — it shows whether the API is reachable and makes no product or
-insurance claim. The real home screen is Phase 3.
+The design system exists and is browsable at **`/design-system`**. There is
+still no domain logic: every component is presentational. `app/page.tsx`
+remains a **developer status page**, not the product home — the real home
+screen is Phase 3.
 
 ## Commands
 
@@ -21,13 +22,48 @@ pnpm format
 
 `NEXT_PUBLIC_API_BASE_URL` points at the API (default `http://localhost:8000`).
 
-## Structure that Phase 0 created
+## Structure so far
 
 ```text
-app/            route tree (App Router)
-lib/api/        typed API client + AsyncState
-tests/          vitest unit tests
+app/                       route tree (App Router)
+app/globals.css            design tokens + base typography
+app/design-system/         component showcase
+components/ui/             Button, Card, Input, ChoiceCard, Sheet, Modal
+components/feedback/       InlineAlert, Skeleton, EmptyState, ErrorState,
+                           ProgressStage
+components/layout/         AppShell, TopNavigation, MobileNavigation,
+                           PageContainer, PageHeader
+lib/api/                   typed API client + AsyncState
+lib/ui/                    cn(), useReturnFocus()
+tests/                     vitest unit tests (jsdom)
 ```
+
+## Design system
+
+Tokens live in `app/globals.css`, not in a Tailwind config file: the
+specification's own variable names in `:root`, re-exported to Tailwind through
+`@theme inline`. `docs/02_UX_UI_SPEC.md` stays the readable source of truth.
+
+Contrast was validated against WCAG 2.1 AA and is enforced by
+`tests/tokens-contrast.test.ts`. Two usages are constrained as a result — see
+`docs/PHASE_1_NOTES.md`:
+
+- text inside a soft-tinted container always uses `--text-primary`; tone
+  colours are for icons and rules;
+- interactive boundaries use `--control-border`, never the decorative
+  `--border`.
+
+Rules that components follow:
+
+- **Tone is never colour alone.** Alerts carry an icon and a wording label;
+  choice cards show a check mark as well as a tint.
+- **Every field is labelled**, and errors are linked with `aria-describedby`
+  and announced.
+- **Every tap target clears ~44px.**
+- **Loading placeholders are hidden from screen readers**; a status message is
+  announced instead.
+- **Overlays trap focus and return it to the trigger** when they close.
+- **No percentages for staged progress** — position only.
 
 ## Structure that later phases create
 
@@ -37,7 +73,6 @@ to avoid premature abstraction, so each arrives with the phase that fills it
 
 ```text
 app/(public)/  app/(auth)/  app/(app)/     route groups        Phases 2-3
-components/ui/ layout/ feedback/           design system       Phase 1
 features/auth/                             beta auth           Phase 2
 features/home/                             home screens        Phase 3
 features/questionnaire/                    question renderer   Phase 4
@@ -60,5 +95,5 @@ styles/
 - **The API client returns errors, it does not throw them**, so the error
   branch cannot be forgotten.
 - **camelCase on the wire.** The backend translates to snake_case internally.
-- **No design tokens yet.** The colour system in `docs/02_UX_UI_SPEC.md` needs
-  contrast validation first; that is Phase 1.
+- **Dark mode is deferred** (`docs/13_DECISIONS_AND_OPEN_ITEMS.md`), so there
+  is deliberately no dark palette.

@@ -82,6 +82,18 @@ should complete in milliseconds.
 async-shaped contract is the safer envelope to keep (it permits a synchronous
 implementation that returns `READY` immediately), but this should be confirmed.
 
+## 8. `Toast` is specified as a global component but has no phase — Phase 3+
+
+`docs/03_FRONTEND_ARCHITECTURE.md` section 4 lists `Toast` among the global
+components, but the Phase 1 build list in `docs/11_BUILD_PLAN.md` does not
+include it (it lists "Alert", which is `InlineAlert`).
+
+**Impact:** none yet. Not built in Phase 1, to avoid widening the phase.
+**Suggested resolution:** build it with the first feature that needs a
+transient, non-blocking confirmation — most likely saving a match (Phase 5/7).
+Confirm whether transient toasts are wanted at all: an in-page `InlineAlert`
+is more durable for a product built around trust and re-reading.
+
 ---
 
 ## Resolved in Phase 0
@@ -101,3 +113,13 @@ describes a modular monolith whose worker needs the same domain code as the
 API. Resolved as a top-level `worker/` package with an editable path
 dependency on `backend/`, so there is no duplicated domain layer. Approved
 before implementation.
+
+## Resolved in Phase 1
+
+### Palette contrast
+
+`docs/02_UX_UI_SPEC.md` section 2 asks for contrast validation before the
+tokens are finalised. Measured; two constrained usages resulted
+(`--attention` as icon-only on its own tint, and a derived `--control-border`
+for interactive boundaries). Full results and the two decisions left open for
+the founder are in `docs/PHASE_1_NOTES.md`. No specification file was edited.
