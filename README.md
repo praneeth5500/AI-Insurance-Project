@@ -46,6 +46,7 @@ predicted. See `docs/06_RECOMMENDATION_ENGINE.md` section 3.
 
 Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_1_NOTES.md`](docs/PHASE_1_NOTES.md) ·
+[`docs/PHASE_2_NOTES.md`](docs/PHASE_2_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -56,7 +57,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 |---|---|
 | 0 — Repository foundation | ✅ Complete |
 | 1 — Design system | ✅ Complete |
-| 2–17 | ⬜ Not started |
+| 2 — Beta auth | ✅ Complete |
+| 3–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -81,8 +83,22 @@ infra/      deployment artefacts (Phase 16)
 cp .env.example .env      # then fill in locally — never commit .env
 make install              # backend, worker and frontend dependencies
 make db-up                # PostgreSQL 16 on :5432
-make migrate              # no migrations exist yet; this is a no-op
+make migrate              # apply database migrations
 ```
+
+The beta is invite-only, so nobody can sign in until an address is invited.
+Put your address in `BETA_ALLOWLIST_EMAILS` in `.env`, then:
+
+```bash
+make seed-allowlist
+```
+
+In local development, magic links are written to
+`backend/.dev-magic-links.log` instead of being emailed. Open the link from
+there to sign in.
+
+`NEXT_PUBLIC_API_BASE_URL` is inlined into the frontend at **build** time, and
+the API and app must be same-site for the session cookie to be sent.
 
 Run the three processes:
 
@@ -104,7 +120,10 @@ The component showcase is at
 
 ## Checks
 
+Backend auth tests need a database:
+
 ```bash
+make db-up         # required: auth tests run against real PostgreSQL
 make check         # lint + typecheck + test (what CI runs)
 make lint
 make typecheck
@@ -123,3 +142,6 @@ make test
   only (Phase 10).
 - **The LLM never ranks recommendations.** Matching is deterministic and
   testable (`docs/06_RECOMMENDATION_ENGINE.md`).
+- **Sign-in tokens are stored only as digests**, are single-use, and expire.
+  Sessions are revocable rows, not self-contained tokens.
+- **Auth responses never reveal who is on the beta allowlist.**

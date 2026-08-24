@@ -26,6 +26,31 @@ const SIZE: Record<ButtonSize, string> = {
   lg: "min-h-[52px] px-6 text-body",
 };
 
+/**
+ * The button's visual treatment, exported so a link that should *look* like a
+ * button can share it. A link that navigates must stay an `<a>`: wrapping one
+ * in a `<button>` is invalid HTML and breaks middle-click, copy-link and
+ * screen-reader semantics.
+ */
+export function buttonClassName({
+  variant = "primary",
+  size = "md",
+  fullWidth = false,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  fullWidth?: boolean;
+} = {}): string {
+  return cn(
+    "inline-flex items-center justify-center gap-2 rounded-control font-medium",
+    "transition-[background-color,opacity,border-color] duration-fast ease-standard",
+    "disabled:cursor-not-allowed disabled:opacity-50",
+    VARIANT[variant],
+    SIZE[size],
+    fullWidth && "w-full",
+  );
+}
+
 export function Button({
   variant = "primary",
   size = "md",
@@ -43,14 +68,7 @@ export function Button({
       type={type}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-control font-medium",
-        "transition-[background-color,opacity,border-color] duration-fast ease-standard",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        VARIANT[variant],
-        SIZE[size],
-        fullWidth && "w-full",
-      )}
+      className={buttonClassName({ variant, size, fullWidth })}
       {...props}
     >
       {loading ? (

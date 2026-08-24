@@ -26,6 +26,19 @@ export type ApiResult<T> = { status: "success"; data: T } | { status: "error"; e
  */
 export type AsyncState<T> = { status: "idle" } | { status: "loading" } | ApiResult<T>;
 
+/** `GET /api/v1/me` and `POST /api/v1/auth/verify` */
+export type CurrentUser = {
+  id: string;
+  email: string;
+  hasProfile: boolean;
+  betaAccess: boolean;
+};
+
+/** `POST /api/v1/auth/request-magic-link` */
+export type MagicLinkResponse = {
+  status: string;
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";

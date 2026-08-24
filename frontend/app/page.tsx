@@ -18,7 +18,7 @@ export default async function DeveloperStatusPage() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="AI Insurance Decision Platform"
-          description="Phase 1 — design system. No product features are implemented yet."
+          description="Phase 2 — beta auth. No product features are implemented yet."
         />
 
         <Card>
@@ -49,11 +49,14 @@ export default async function DeveloperStatusPage() {
           </div>
         </Card>
 
-        <p className="text-support text-secondary">
+        <div className="flex flex-col gap-2 text-support text-secondary">
+          <Link href="/sign-in" className="font-medium text-accent underline">
+            Sign in
+          </Link>
           <Link href="/design-system" className="font-medium text-accent underline">
             View the design system
           </Link>
-        </p>
+        </div>
       </div>
     </PageContainer>
   );

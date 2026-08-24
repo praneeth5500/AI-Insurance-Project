@@ -41,6 +41,27 @@ class Settings(BaseSettings):
     #: Requests slower than this are logged at WARNING so latency stays visible.
     slow_request_threshold_ms: int = Field(default=1000, ge=1)
 
+    # ---------------------------------------------------------------- auth --
+    # Where the magic link should send the user. The link is built by the API
+    # but opened in the frontend.
+    frontend_base_url: str = "http://localhost:3000"
+
+    #: Comma-separated emails seeded into the beta allowlist by
+    #: `make seed-allowlist`. Empty by default: nobody has access until an
+    #: invite is issued deliberately.
+    beta_allowlist_emails: str = ""
+
+    session_cookie_name: str = "insurance_session"
+    #: Set in deployed environments when the API and app are on different
+    #: subdomains of the same site (e.g. ".example.com"). Unset locally.
+    session_cookie_domain: str | None = None
+
+    #: Lifetimes are configurable rather than hard-coded: neither value is
+    #: fixed by the specification, so both are flagged in
+    #: docs/PHASE_2_NOTES.md for founder confirmation.
+    magic_link_ttl_minutes: int = Field(default=15, ge=1, le=60)
+    session_ttl_days: int = Field(default=14, ge=1, le=90)
+
     @field_validator("log_level")
     @classmethod
     def _normalize_log_level(cls, value: str) -> str:
@@ -53,6 +74,19 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.app_env == "local"
+
+    @property
+    def allowlist_seed_emails(self) -> list[str]:
+        return [
+            email.strip().lower()
+            for email in self.beta_allowlist_emails.split(",")
+            if email.strip()
+        ]
+
+    @property
+    def session_cookie_secure(self) -> bool:
+        """Only local development may send the session cookie over plain HTTP."""
+        return not self.is_local
 
     @property
     def cors_origins(self) -> list[str]:

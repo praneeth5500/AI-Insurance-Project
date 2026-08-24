@@ -3,11 +3,10 @@
 FastAPI + Pydantic + SQLAlchemy (async) + PostgreSQL, built as a **modular
 monolith** (`docs/04_BACKEND_ARCHITECTURE.md`).
 
-## Phase 0 status
+## Phase 2 status
 
-Foundation only: configuration, safe logging, the single error envelope,
-request-id middleware, the database engine, health endpoints, and Alembic
-scaffolding. **No domain modules and no database tables exist yet.**
+Foundation plus beta authentication: invite allowlist, passwordless magic
+link, revocable sessions, protected endpoints and audit events.
 
 ## Commands
 
@@ -23,11 +22,15 @@ uv run alembic upgrade head               # or: make migrate
 ## Structure that Phase 0 created
 
 ```text
-app/core/       config, logging, errors, middleware, API model base
-app/db/         async engine/session, declarative base (no models yet)
-app/health/     /health/live and /health/ready
-app/api/v1/     the versioned product API router (empty)
-migrations/     Alembic environment (zero migrations)
+app/core/          config, logging, errors, middleware, API model base, tokens
+app/db/            async engine/session, declarative base, id/timestamp helpers
+app/health/        /health/live and /health/ready
+app/api/v1/        the versioned product API router
+app/auth/          identities, magic links, sessions, allowlist
+app/users/         the domain user profile (separate from the auth identity)
+app/audit/         audit events
+app/integrations/  external provider adapters (email so far)
+migrations/        Alembic environment and migrations
 ```
 
 ## Structure that later phases create
@@ -37,7 +40,7 @@ abstractions"). Target module list from
 `docs/04_BACKEND_ARCHITECTURE.md` section 1:
 
 ```text
-auth/ users/ households/ profiles/        Phase 2 onwards
+households/ profiles/                     Phase 3 onwards
 questionnaires/                           Phase 4
 recommendations/ scoring/                 Phase 9
 products/ pricing/                        Phase 8
@@ -64,6 +67,12 @@ SDK calls stay out of domain logic.
   tokens are dropped by a filter rather than by reviewer vigilance.
 - **Health endpoints live outside `/api/v1`** — they are operational, not
   product API.
-- **Migrations are mandatory** for schema changes, but Phase 0 has none:
-  `docs/05_DATA_MODEL.md` is a logical model and asks for migrations only once
-  relationships are validated in implementation.
+- **Migrations are mandatory** for schema changes. Add the model, import it in
+  `migrations/env.py`, then `make migration m="..."`.
+- **Auth relationships are `lazy="raise"`.** Implicit lazy loading under async
+  SQLAlchemy fails non-deterministically depending on garbage collection, so
+  callers must eager load or carry the object explicitly. See
+  `docs/PHASE_2_NOTES.md`.
+- **Sign-in tokens are never stored or logged in the clear** — only SHA-256
+  digests are persisted.
+- **Auth tests need a real database.** `make db-up`, then `make test`.

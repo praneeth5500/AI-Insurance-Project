@@ -94,6 +94,29 @@ transient, non-blocking confirmation — most likely saving a match (Phase 5/7).
 Confirm whether transient toasts are wanted at all: an in-page `InlineAlert`
 is more durable for a product built around trust and re-reading.
 
+## 9. The data model has no storage for the magic-link flow — Phase 2 (implemented)
+
+`docs/05_DATA_MODEL.md` section 1 defines `auth_identities` and `users`, but
+the magic-link flow that `docs/04_BACKEND_ARCHITECTURE.md` section 7 requires
+also needs somewhere to keep issued links and live sessions. Neither is in the
+logical model.
+
+**Resolved by adding two tables**, since Phase 2 cannot exist without them:
+
+- `magic_link_tokens` — token digest, expiry, `consumed_at` (single use);
+- `sessions` — token digest, expiry, `revoked_at` (revocation).
+
+Both store only a SHA-256 digest, never the token. Please confirm these belong
+in the data model document, or tell me how you would rather they be shaped.
+
+## 10. `POST /api/v1/auth/sign-out` is not in the API contracts — Phase 2 (implemented)
+
+`docs/11_BUILD_PLAN.md` Phase 2 requires sign out, but
+`docs/08_API_CONTRACTS.md` section 1 lists only `request-magic-link` and
+`verify`. Added `POST /api/v1/auth/sign-out`, which revokes the session row and
+clears the cookie, and is idempotent. Flagged so the contracts document can be
+updated deliberately rather than drifting.
+
 ---
 
 ## Resolved in Phase 0
@@ -123,3 +146,19 @@ tokens are finalised. Measured; two constrained usages resulted
 (`--attention` as icon-only on its own tint, and a derived `--control-border`
 for interactive boundaries). Full results and the two decisions left open for
 the founder are in `docs/PHASE_1_NOTES.md`. No specification file was edited.
+
+## Resolved in Phase 2
+
+### Session and magic-link lifetimes
+
+Not fixed anywhere in the specification. Implemented as configuration
+(`MAGIC_LINK_TTL_MINUTES`, `SESSION_TTL_DAYS`) with documented defaults rather
+than hard-coded values, and raised as an open question in
+`docs/PHASE_2_NOTES.md`.
+
+### How beta invites are issued
+
+The specification says access is invite-only but not how an invite is created.
+Implemented as the smallest mechanism that works — a configured address list
+applied by an operator running `make seed-allowlist` — and flagged for a
+product decision rather than guessed at.

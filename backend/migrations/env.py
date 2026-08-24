@@ -24,8 +24,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import domain model modules here as they are created so that autogenerate
-# can see them; Base.metadata is empty until then.
+# Model modules are imported for their side effect of registering tables on
+# Base.metadata, which is what autogenerate compares against.
+from app.audit import models as audit_models  # noqa: E402,F401
+from app.auth import models as auth_models  # noqa: E402,F401
+from app.users import models as user_models  # noqa: E402,F401
+
 target_metadata = Base.metadata
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

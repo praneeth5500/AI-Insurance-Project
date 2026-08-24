@@ -31,6 +31,7 @@ jobs:
       # Test-only credentials for an ephemeral CI container. Real secrets never
       # live in this file.
       DATABASE_URL: postgresql+asyncpg://insurance:insurance@localhost:5432/insurance_test
+      TEST_DATABASE_URL: postgresql+asyncpg://insurance:insurance@localhost:5432/insurance_test
     steps:
       - uses: actions/checkout@v4
 

@@ -53,6 +53,10 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
       ...init,
+      // The session lives in an httpOnly cookie, so every call must carry
+      // credentials. On the server, the cookie is forwarded explicitly by
+      // lib/auth/session.ts instead.
+      credentials: "include",
       headers: { Accept: "application/json", ...init?.headers },
     });
   } catch {
@@ -72,6 +76,20 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   }
 
   return { status: "success", data: body as T };
+}
+
+/** POST a JSON body and narrow the outcome. */
+export async function postJson<T>(
+  path: string,
+  body: unknown,
+  init?: RequestInit,
+): Promise<ApiResult<T>> {
+  return requestJson<T>(path, {
+    ...init,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+    body: JSON.stringify(body),
+  });
 }
 
 /** Readiness of the API and its dependencies. Used by the Phase 0 status page. */

@@ -29,6 +29,9 @@ coverage/
 /uploads/
 /local-storage/
 
+# Local development magic links contain live sign-in tokens
+.dev-magic-links.log
+
 # OS / editor
 .DS_Store
 Thumbs.db
