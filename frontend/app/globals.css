@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/*
+ * Phase 0 contains no design tokens on purpose.
+ *
+ * The colour, typography, shape and motion system in docs/02_UX_UI_SPEC.md is
+ * Phase 1 work, and its colours still need contrast validation before they are
+ * finalised. Defining them here early would freeze unvalidated values.
+ */

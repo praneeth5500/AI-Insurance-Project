@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend & worker
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: insurance
+          POSTGRES_PASSWORD: insurance
+          POSTGRES_DB: insurance_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U insurance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: local
+      # Test-only credentials for an ephemeral CI container. Real secrets never
+      # live in this file.
+      DATABASE_URL: postgresql+asyncpg://insurance:insurance@localhost:5432/insurance_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Lint backend
+        working-directory: backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type-check backend
+        working-directory: backend
+        run: uv run mypy app tests
+
+      - name: Test backend
+        working-directory: backend
+        run: uv run pytest
+
+      - name: Verify migrations apply to an empty database
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: uv sync
+
+      - name: Lint worker
+        working-directory: worker
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type-check worker
+        working-directory: worker
+        run: uv run mypy worker tests
+
+      - name: Test worker
+        working-directory: worker
+        run: uv run pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

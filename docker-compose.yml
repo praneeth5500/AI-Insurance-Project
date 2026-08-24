@@ -1,0 +1,22 @@
+# Local development dependencies only.
+# Never point this at real customer data (09_AWS_DEPLOYMENT.md §4).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: insurance_postgres_local
+    environment:
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: insurance
+      POSTGRES_DB: insurance_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insurance -d insurance_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_local_data:
