@@ -81,6 +81,7 @@ class MatchView(ApiModel):
             )
 
         fits = [to_view(entry) for entry in fits_raw]
+        by_factor = {fit.factor: fit for fit in fits}
 
         return cls(
             id=candidate.id,
@@ -90,7 +91,9 @@ class MatchView(ApiModel):
             source_type=payload.get("sourceType", "SYNTHETIC"),
             presentation_order=candidate.presentation_order,
             eligibility_status=candidate.eligibility_status,
-            highlights=[fit for fit in fits if fit.factor in highlight_factors],
+            # Ordered by highlightFactors, not catalogue order: strongest_fits
+            # puts the reader's own priorities first and that must survive.
+            highlights=[by_factor[factor] for factor in highlight_factors if factor in by_factor],
             watch_out=payload.get("watchOut", ""),
             fits=fits,
             price=PriceView(

@@ -76,6 +76,7 @@ describe("MatchCard", () => {
     onToggleCompare: vi.fn(),
     compareDisabled: false,
     moved: false,
+    detailHref: "/app/products/sp_1?from=rr_1",
   };
 
   it("names the insurer and product and marks it as demo content", () => {
@@ -122,11 +123,11 @@ describe("MatchCard", () => {
     expect(screen.getByText("Trade-off")).toBeDefined();
   });
 
-  it("does not link to a detail screen that does not exist", () => {
+  it("links to the detail screen", () => {
     render(<MatchCard {...props} />);
 
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
-    expect(screen.getByText("Full details coming soon")).toBeDefined();
+    const link = screen.getByRole("link", { name: /View details/ });
+    expect(link.getAttribute("href")).toBe("/app/products/sp_1?from=rr_1");
   });
 
   it("disables compare once the limit is reached", () => {

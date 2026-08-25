@@ -334,3 +334,22 @@ async def test_one_user_cannot_reorder_another_users_run(db: AsyncSession) -> No
         await service.update_priorities(
             db, user=intruder, run_id=run.run.id, priorities=["low_copay"]
         )
+
+
+async def test_card_highlights_lead_with_the_reader_s_priority(db: AsyncSession) -> None:
+    """Regression: the ordering strongest_fits produces must survive.
+
+    Filtering the full fit list by membership would silently restore catalogue
+    order and put a strength the reader never mentioned first.
+    """
+    user = await make_user(db)
+    session_id = await completed_session(db, user, {"priorities": ["fewer_sublimits", "low_copay"]})
+
+    view = RunView.of(await service.create_run(db, user=user, questionnaire_session_id=session_id))
+    meridian = next(
+        match
+        for match in view.matches + view.additional_matches
+        if match.product_reference == "sp_meridian_core"
+    )
+
+    assert meridian.highlights[0].factor == "sublimits"

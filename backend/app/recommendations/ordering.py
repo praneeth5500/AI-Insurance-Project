@@ -73,15 +73,18 @@ def strongest_fits(product: SyntheticProduct, priorities: list[str], limit: int 
     Factors the user said mattered come first, so the highlights answer *their*
     question rather than showing the product's best angle.
     """
-    chosen_factors = [
-        factor
-        for priority in priorities
+    # Position in the user's own list, so two equally strong priorities are
+    # ordered the way *they* ranked them rather than alphabetically.
+    chosen_rank = {
+        factor: index
+        for index, priority in enumerate(priorities)
         if (factor := PRIORITY_TO_FACTOR.get(priority)) is not None
-    ]
+    }
+    unchosen = len(priorities) + 1
 
     def sort_key(factor_and_rank: tuple[str, int]) -> tuple[int, int, str]:
         factor, rank = factor_and_rank
-        return (0 if factor in chosen_factors else 1, -rank, factor)
+        return (chosen_rank.get(factor, unchosen), -rank, factor)
 
     ranked = [
         (fit.factor, _LABEL_RANK.get(fit.label, 0))

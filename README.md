@@ -51,6 +51,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_4_NOTES.md`](docs/PHASE_4_NOTES.md) ·
 [`docs/PHASE_5_NOTES.md`](docs/PHASE_5_NOTES.md) ·
 [`docs/PHASE_6_NOTES.md`](docs/PHASE_6_NOTES.md) ·
+[`docs/PHASE_7_NOTES.md`](docs/PHASE_7_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -66,7 +67,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 4 — Questionnaire engine | ✅ Complete |
 | 5 — Mock recommendation experience | ✅ Complete |
 | 6 — Comparison | ✅ Complete |
-| 7–17 | ⬜ Not started |
+| 7 — Product detail | ✅ Complete |
+| 8–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -167,3 +169,7 @@ make test
   so nothing can send them to logs or analytics by accident.
 - **Every insurance product in this build is invented** and labelled as such.
   No premium is shown anywhere, and no ranking is produced by an LLM.
+- **No source citation is ever fabricated.** Where no policy document exists,
+  the UI says so rather than hiding the control.
+- **Examples explain a mechanism, never a product** — and are labelled as
+  examples wherever they appear.

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { FitBadge, FitDimension } from "@/features/recommendations/fit-dimension";
@@ -17,8 +18,8 @@ import { cn } from "@/lib/ui/cn";
  * state, "Why this matches", compare, view details. No overall score appears
  * anywhere — the specification forbids a 0–100 consumer number.
  *
- * "View details" belongs to the product-detail screen (Phase 7), so it is
- * shown as pending rather than as a link to nowhere.
+ * "View details" opens the product detail screen, carrying the reader's
+ * priorities so it leads with the same strengths this card shows.
  */
 export function MatchCard({
   match,
@@ -27,6 +28,7 @@ export function MatchCard({
   onToggleCompare,
   compareDisabled,
   moved,
+  detailHref,
 }: {
   match: MatchView;
   position: number;
@@ -35,6 +37,7 @@ export function MatchCard({
   compareDisabled: boolean;
   /** Highlighted after a priority change, so a reordering is visible. */
   moved: boolean;
+  detailHref: string;
 }) {
   const [showWhy, setShowWhy] = useState(false);
   const whyId = `why-${match.id}`;
@@ -116,8 +119,16 @@ export function MatchCard({
             </span>
           </label>
 
-          {/* Phase 7 builds the detail screen; no link is offered until it does. */}
-          <span className="text-support text-secondary">Full details coming soon</span>
+          <Link
+            href={detailHref}
+            className="flex min-h-touch items-center text-support font-medium text-accent underline"
+          >
+            View details
+            <span className="sr-only">
+              {" "}
+              for {match.insurerName} {match.productName}
+            </span>
+          </Link>
         </div>
       </div>
     </Card>

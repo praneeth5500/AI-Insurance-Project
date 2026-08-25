@@ -121,6 +121,7 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
                 onToggleCompare={() => toggleCompare(match.productReference)}
                 compareDisabled={selected.length >= MAX_COMPARE}
                 moved={run.reordered.includes(match.productReference)}
+                detailHref={`/app/products/${match.productReference}?from=${run.id}&priorities=${run.priorities.join(",")}`}
               />
             </li>
           ))}

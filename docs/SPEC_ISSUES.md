@@ -186,6 +186,25 @@ comparison is derived from a recommendation run plus a selection, both already
 stored, and persisting it would create a record that can silently disagree
 with the run it came from.
 
+## 18. "Save" has no table, and no home module — Phase 7
+
+`docs/11_BUILD_PLAN.md` Phase 7 asks for "save", but `docs/05_DATA_MODEL.md`
+defines no table for saved products, and `docs/01_PRODUCT_SPEC.md` section 5
+does not list saved products among the returning-home modules.
+
+**Resolved by adding** a minimal `saved_products` table (user, product
+reference, timestamp). **Not resolved:** where a user finds their saved
+options again. Raised in `docs/PHASE_7_NOTES.md` — saving that cannot be found
+is half a feature.
+
+## 19. `/app/products/:productVersionId` before product versions exist
+
+`docs/03_FRONTEND_ARCHITECTURE.md` section 2 and
+`docs/08_API_CONTRACTS.md` section 5 both address products by
+`productVersionId`. Product versions arrive in Phase 8, so the route and
+endpoint currently carry a synthetic product reference. Same shape as issue 17
+for comparisons; both become version ids together.
+
 ---
 
 ## Resolved in Phase 0
@@ -287,3 +306,20 @@ The comparison must lead with the biggest differences, but any visible
 `docs/01_PRODUCT_SPEC.md` section 2.5 rules out. Resolved by using the spread
 between fit labels for ordering only and never serialising it. Enforced by a
 test.
+
+## Resolved in Phase 7
+
+### Source links for data that has no source
+
+`docs/01_PRODUCT_SPEC.md` section 2.8 requires every technical item to support
+"View source wording", but synthetic products have no policy document, and a
+fabricated citation is release-blocking. Resolved by keeping the control on
+every fact and having it state plainly that no source exists and why. The
+control is deliberately not hidden: hiding it would hide the fact that nothing
+is verified.
+
+### Examples with figures, on products that carry no figures
+
+Resolved by separating the two: an example is a labelled hypothetical about
+policies in general, never a statement about this product. Product facts still
+carry no figures. See `docs/PHASE_7_NOTES.md`.

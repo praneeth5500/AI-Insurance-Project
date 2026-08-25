@@ -1,4 +1,10 @@
-import type { ApiResult, AppError, ComparisonView, RecommendationRun } from "@/lib/api/types";
+import type {
+  ApiResult,
+  AppError,
+  ComparisonView,
+  ProductDetail,
+  RecommendationRun,
+} from "@/lib/api/types";
 import { fetchAsUser } from "@/lib/auth/session";
 
 const NETWORK_ERROR: AppError = {
@@ -82,4 +88,33 @@ export async function getComparison(
   }
 
   return { status: "success", data: body as ComparisonView };
+}
+
+/** Load one option in full, server-side. */
+export async function getProductDetail(
+  reference: string,
+  priorities: string[],
+): Promise<ApiResult<ProductDetail>> {
+  const query = priorities.length > 0 ? `?priorities=${priorities.join(",")}` : "";
+  const response = await fetchAsUser(`/api/v1/products/${encodeURIComponent(reference)}${query}`);
+  if (response === null) return { status: "error", error: NETWORK_ERROR };
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { status: "error", error: UNEXPECTED_ERROR };
+  }
+
+  if (!response.ok) {
+    const envelope = (body as { error?: unknown }).error;
+    return {
+      status: "error",
+      error: isAppError(envelope)
+        ? { ...envelope, requestId: envelope.requestId ?? null }
+        : UNEXPECTED_ERROR,
+    };
+  }
+
+  return { status: "success", data: body as ProductDetail };
 }

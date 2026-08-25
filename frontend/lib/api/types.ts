@@ -247,6 +247,48 @@ export type ComparisonView = {
   allDetails: DimensionView[];
 };
 
+// ----------------------------------------------------- product detail ----
+
+export type ProductFactView = {
+  key: string;
+  label: string;
+  value: string;
+  /** "Explain with example" — about the mechanism, never this product. */
+  example: string | null;
+  /** False for every synthetic product. Never fabricate a citation. */
+  hasSource: boolean;
+  sourceNote: string | null;
+};
+
+export type ProductSectionView = {
+  key: string;
+  label: string;
+  facts: ProductFactView[];
+};
+
+export type ProvenanceView = {
+  sourceType: string;
+  catalogueVersion: string;
+  verifiedAt: string | null;
+  explanation: string;
+};
+
+/** `GET /api/v1/products/{reference}` */
+export type ProductDetail = {
+  reference: string;
+  insurerName: string;
+  productName: string;
+  sourceType: string;
+  highlights: FitView[];
+  watchOut: string;
+  fits: FitView[];
+  sections: ProductSectionView[];
+  sourceDocuments: string[];
+  sourceDocumentsNote: string;
+  provenance: ProvenanceView;
+  saved: boolean;
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";
