@@ -52,6 +52,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_5_NOTES.md`](docs/PHASE_5_NOTES.md) ·
 [`docs/PHASE_6_NOTES.md`](docs/PHASE_6_NOTES.md) ·
 [`docs/PHASE_7_NOTES.md`](docs/PHASE_7_NOTES.md) ·
+[`docs/PHASE_8_NOTES.md`](docs/PHASE_8_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -68,7 +69,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 5 — Mock recommendation experience | ✅ Complete |
 | 6 — Comparison | ✅ Complete |
 | 7 — Product detail | ✅ Complete |
-| 8–17 | ⬜ Not started |
+| 8 — Real data domain layer | ✅ Complete |
+| 9–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -101,6 +103,14 @@ Put your address in `BETA_ALLOWLIST_EMAILS` in `.env`, then:
 
 ```bash
 make seed-allowlist
+```
+
+To load manually verified product data (the canonical catalogue ships empty):
+
+```bash
+cp backend/examples/products.template.json my-products.json
+# fill in every REPLACE_ME — the importer refuses placeholders
+make import-products FILE=my-products.json
 ```
 
 In local development, magic links are written to
@@ -173,3 +183,9 @@ make test
   the UI says so rather than hiding the control.
 - **Examples explain a mechanism, never a product** — and are labelled as
   examples wherever they appear.
+- **Nothing enters the verified catalogue without provenance**: source
+  document, location within it, when it was checked and by whom. Synthetic
+  data is refused outright.
+- **Stale critical data excludes a product** rather than lowering its score.
+- **A price is a state, never a bare number**, and no code path can produce
+  one.

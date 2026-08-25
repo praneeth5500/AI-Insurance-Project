@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 .PHONY: help install db-up db-down db-reset dev-backend dev-worker dev-frontend \
-        migrate migration seed-allowlist lint format typecheck test test-backend test-frontend check
+        migrate migration seed-allowlist import-products lint format typecheck test test-backend test-frontend check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -39,6 +39,9 @@ migration: ## Create a migration: make migration m="add users"
 
 seed-allowlist: ## Invite the emails in BETA_ALLOWLIST_EMAILS
 	cd backend && uv run python -m scripts.seed_allowlist
+
+import-products: ## Import verified product data: make import-products FILE=data.json
+	cd backend && uv run python -m scripts.import_products "$(FILE)"
 
 lint: ## Lint backend, worker and frontend
 	cd backend && uv run ruff check .

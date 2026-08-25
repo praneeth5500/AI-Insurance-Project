@@ -1,0 +1,50 @@
+{
+  "_README": [
+    "Template for the manual verified-data importer.",
+    "",
+    "Every value marked REPLACE_ME must be filled in by a person who has",
+    "checked the fact against the source document. The importer refuses any",
+    "file that still contains a placeholder, so this template cannot be",
+    "imported as-is.",
+    "",
+    "sourceType must be MANUALLY_VERIFIED or PARTNER_API. Synthetic data is",
+    "refused: demo products belong in the demo catalogue.",
+    "",
+    "A change to a product's terms is a NEW versionLabel, never an edit to an",
+    "existing one. Re-importing the same label only refreshes its provenance.",
+    "",
+    "Run:  make import-products FILE=path/to/your-file.json"
+  ],
+  "versions": [
+    {
+      "insurerName": "REPLACE_ME — the insurer's registered name",
+      "productName": "REPLACE_ME — the product name as it appears in the wording",
+      "domain": "HEALTH",
+      "versionLabel": "REPLACE_ME — e.g. 2026-04 wording",
+      "uinOrReference": "REPLACE_ME — UIN or the insurer's own reference",
+      "effectiveFrom": "2026-04-01T00:00:00Z",
+      "effectiveTo": null,
+      "sourceType": "MANUALLY_VERIFIED",
+      "sourceName": "REPLACE_ME — the document you read, e.g. 'Policy wording v3.pdf'",
+      "sourceReference": "REPLACE_ME — where in it, e.g. 'Section 4.2, page 11'",
+      "verifiedAt": "2026-04-15T00:00:00Z",
+      "verifiedBy": "REPLACE_ME — the person who checked it",
+      "facts": [
+        {
+          "factKey": "ped_waiting_period",
+          "value": { "months": 36 },
+          "criticalForMatching": true,
+          "sourceReference": "Section 4.2",
+          "sourcePage": 11
+        },
+        {
+          "factKey": "copay",
+          "value": { "percent": 0 },
+          "criticalForMatching": true,
+          "sourceReference": "Section 3.1",
+          "sourcePage": 8
+        }
+      ]
+    }
+  ]
+}

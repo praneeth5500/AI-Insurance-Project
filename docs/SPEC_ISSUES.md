@@ -205,6 +205,16 @@ is half a feature.
 endpoint currently carry a synthetic product reference. Same shape as issue 17
 for comparisons; both become version ids together.
 
+## 20. `product_versions` has no record of *who* verified it — Phase 8
+
+`docs/05_DATA_MODEL.md` section 4 gives `product_versions` a `verified_at` but
+no verifier. "Manually verified" is a claim about a human action, and a claim
+nobody's name is attached to is not verification.
+
+**Resolved by adding** a NOT NULL `verified_by`, which the importer requires.
+Please confirm you want it, and what it should hold — a name, an email, or an
+internal identifier.
+
 ---
 
 ## Resolved in Phase 0
@@ -323,3 +333,21 @@ is verified.
 Resolved by separating the two: an example is a labelled hypothetical about
 policies in general, never a statement about this product. Product facts still
 carry no figures. See `docs/PHASE_7_NOTES.md`.
+
+## Resolved in Phase 8
+
+### Requiring a quote method with no partner to quote from
+
+`docs/04_BACKEND_ARCHITECTURE.md` section 3 requires `get_quote` on the
+provider interface; open item 5 leaves the partner undecided. Resolved by
+having every implementation raise rather than return a placeholder: an
+estimate, a range or a stub would be an invented premium, which `CLAUDE.md`
+forbids. Failing loudly means a caller cannot ship a fabricated number by
+accident.
+
+### Freshness windows
+
+Neither the verification window (how long a verified fact stays usable) nor
+the indicative-price window is fixed anywhere in the specification. Both are
+configuration with documented defaults — 180 and 30 days — and raised in
+`docs/PHASE_8_NOTES.md` as product decisions.

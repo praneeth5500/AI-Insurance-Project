@@ -3,12 +3,13 @@
 FastAPI + Pydantic + SQLAlchemy (async) + PostgreSQL, built as a **modular
 monolith** (`docs/04_BACKEND_ARCHITECTURE.md`).
 
-## Phase 7 status
+## Phase 8 status
 
 Foundation, beta authentication, the home summary, the adaptive questionnaire
 engine, and a mock recommendation experience over a synthetic product
-catalogue, with side-by-side comparison and a full product detail screen. The
-real matching engine is Phase 9 and real product data is Phase 8.
+catalogue, with side-by-side comparison and a full product detail screen —
+plus the canonical product catalogue, provenance, price state, a verified-data
+importer and the provider interface. The matching engine is Phase 9.
 
 ## Commands
 
@@ -31,7 +32,9 @@ app/api/v1/        the versioned product API router
 app/auth/          identities, magic links, sessions, allowlist
 app/home/          the signed-in home summary
 app/questionnaires/ question definitions, branching, drafts, priorities
-app/products/      synthetic catalogue, policy sections, saved options
+app/products/      canonical catalogue, provenance, freshness, importer,
+                   provider interface, synthetic catalogue, saved options
+app/pricing/       price records and the rules for displaying one
 app/recommendations/ prototype ordering, decision profile, runs
 app/users/         the domain user profile (separate from the auth identity)
 app/audit/         audit events
@@ -47,7 +50,6 @@ abstractions"). Target module list from
 
 ```text
 households/ profiles/                     later
-products/ pricing/  (real data)           Phase 8
 scoring/                                  Phase 9
 recommendations/ scoring/                 Phase 9
 products/ pricing/                        Phase 8
