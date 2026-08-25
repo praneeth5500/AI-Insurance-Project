@@ -82,12 +82,23 @@ async def test_no_activity_is_reported_that_does_not_exist(
 async def test_unbuilt_destinations_are_reported_as_coming_soon(
     settings: Settings,
 ) -> None:
-    """docs/12_BETA_CHECKLIST.md requires no dead buttons."""
+    """docs/12_BETA_CHECKLIST.md requires no dead buttons.
+
+    The health questionnaire exists as of Phase 4, so its entry point is
+    available; the decoder and motor flows do not exist and must stay marked
+    as coming soon.
+    """
     features = feature_availability(settings)
 
-    assert features.health_recommendation == "COMING_SOON"
+    assert features.health_recommendation == "AVAILABLE"
     assert features.motor_recommendation == "COMING_SOON"
     assert features.policy_decoder == "COMING_SOON"
+
+
+async def test_an_unbuilt_destination_can_still_be_switched_off() -> None:
+    features = feature_availability(Settings(app_env="local", feature_health_recommendation=False))
+
+    assert features.health_recommendation == "COMING_SOON"
 
 
 async def test_a_feature_flag_marks_its_destination_available() -> None:

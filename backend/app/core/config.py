@@ -67,11 +67,13 @@ class Settings(BaseSettings):
     # docs/12_BETA_CHECKLIST.md requires "no dead buttons", so each flag stays
     # false until the phase that builds the flow turns it on.
     #
-    # Health matching arrives in Phases 4-9; the policy decoder in Phases
-    # 10-13. Motor is architecturally supported but must not be enabled until
-    # the health engine and motor data are ready
-    # (docs/13_DECISIONS_AND_OPEN_ITEMS.md open item 8).
-    feature_health_recommendation: bool = False
+    # The health questionnaire is built and usable (Phase 4), so its entry
+    # point is on by default. Matched options are a separate flag: the review
+    # screen must not promise results the engine cannot yet produce.
+    # The policy decoder arrives in Phases 10-13. Motor is architecturally
+    # supported but must not be enabled until the health engine and motor data
+    # are ready (docs/13_DECISIONS_AND_OPEN_ITEMS.md open item 8).
+    feature_health_recommendation: bool = True
     feature_motor_recommendation: bool = False
     feature_policy_decoder: bool = False
 

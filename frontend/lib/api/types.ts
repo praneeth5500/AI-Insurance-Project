@@ -102,6 +102,66 @@ export type HomeSummary = {
   vehicles: VehicleSummary | null;
 };
 
+// ------------------------------------------------------- questionnaire ----
+
+export type InputType =
+  "SINGLE_CHOICE" | "MULTI_CHOICE" | "NUMBER" | "MONEY" | "PINCODE" | "BOOLEAN";
+
+export type QuestionOption = {
+  value: string;
+  label: string;
+  description: string | null;
+};
+
+export type Question = {
+  id: string;
+  stage: string;
+  title: string;
+  description: string | null;
+  inputType: InputType;
+  options: QuestionOption[];
+  required: boolean;
+  dataField: string;
+  /** "Why we're asking this" — docs/02_UX_UI_SPEC.md rule 3. */
+  helpText: string | null;
+  maxSelections: number | null;
+  unit: string | null;
+  minValue: number | null;
+  maxValue: number | null;
+  /** Never send this answer's value to analytics or logs. */
+  sensitive: boolean;
+};
+
+export type QuestionnaireStage = {
+  key: string;
+  label: string;
+  questionIds: string[];
+  complete: boolean;
+};
+
+export type QuestionnaireAnswer = {
+  questionId: string;
+  value: unknown;
+};
+
+/** `GET /api/v1/questionnaire-sessions/{id}` */
+export type QuestionnaireSession = {
+  id: string;
+  domain: string;
+  questionnaireVersion: string;
+  status: "IN_PROGRESS" | "COMPLETED";
+  startedAt: string;
+  completedAt: string | null;
+  /** DRAFT until the founder's wording pass on the question set. */
+  definitionStatus: "DRAFT" | "ACTIVE";
+  stages: QuestionnaireStage[];
+  questions: Question[];
+  answers: QuestionnaireAnswer[];
+  currentStage: string | null;
+  nextQuestionId: string | null;
+  isComplete: boolean;
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";

@@ -14,8 +14,14 @@ import { requireUser } from "@/lib/auth/session";
 // Navigation labels from docs/02_UX_UI_SPEC.md section 4. Destinations that
 // have not been built yet are not listed: an invited beta user should never
 // meet a dead link.
-const DESKTOP_ITEMS: readonly NavItem[] = [{ href: "/app/home", label: "Home" }];
-const MOBILE_ITEMS: readonly NavItem[] = [{ href: "/app/home", label: "Home", icon: "home" }];
+const DESKTOP_ITEMS: readonly NavItem[] = [
+  { href: "/app/home", label: "Home" },
+  { href: "/app/recommend/health", label: "Find Insurance" },
+];
+const MOBILE_ITEMS: readonly NavItem[] = [
+  { href: "/app/home", label: "Home", icon: "home" },
+  { href: "/app/recommend/health", label: "Recommend", icon: "recommend" },
+];
 
 export const dynamic = "force-dynamic";
 

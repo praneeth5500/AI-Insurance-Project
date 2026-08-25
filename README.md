@@ -48,6 +48,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_1_NOTES.md`](docs/PHASE_1_NOTES.md) ·
 [`docs/PHASE_2_NOTES.md`](docs/PHASE_2_NOTES.md) ·
 [`docs/PHASE_3_NOTES.md`](docs/PHASE_3_NOTES.md) ·
+[`docs/PHASE_4_NOTES.md`](docs/PHASE_4_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -60,7 +61,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 1 — Design system | ✅ Complete |
 | 2 — Beta auth | ✅ Complete |
 | 3 — Home | ✅ Complete |
-| 4–17 | ⬜ Not started |
+| 4 — Questionnaire engine | ✅ Complete |
+| 5–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -155,3 +157,7 @@ make test
   `FEATURE_*` flag and shows "Coming soon" until its flow exists.
 - **Synthetic content is always labelled** and cannot be enabled outside local
   and preview.
+- **The seeded questionnaire is DRAFT** and needs a wording pass; changing a
+  question means a new version, never an edit.
+- **Sensitive answers are flagged at the question and on the stored answer**,
+  so nothing can send them to logs or analytics by accident.

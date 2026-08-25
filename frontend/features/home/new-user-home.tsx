@@ -29,7 +29,7 @@ export function NewUserHome({ features }: { features: FeatureAvailability }) {
             icon={HeartPulse}
             title="Health Insurance"
             description="Find health insurance based on what matters to you."
-            actionLabel="Start with health"
+            actionLabel="Answer a few questions"
             href="/app/recommend/health"
             availability={features.healthRecommendation}
             comingSoonNote="The guided health questions are being built."

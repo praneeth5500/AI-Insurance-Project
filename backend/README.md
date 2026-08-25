@@ -3,10 +3,10 @@
 FastAPI + Pydantic + SQLAlchemy (async) + PostgreSQL, built as a **modular
 monolith** (`docs/04_BACKEND_ARCHITECTURE.md`).
 
-## Phase 2 status
+## Phase 4 status
 
-Foundation plus beta authentication: invite allowlist, passwordless magic
-link, revocable sessions, protected endpoints and audit events.
+Foundation, beta authentication, the home summary, and the adaptive
+questionnaire engine with a seeded (DRAFT) health question set.
 
 ## Commands
 
@@ -27,6 +27,8 @@ app/db/            async engine/session, declarative base, id/timestamp helpers
 app/health/        /health/live and /health/ready
 app/api/v1/        the versioned product API router
 app/auth/          identities, magic links, sessions, allowlist
+app/home/          the signed-in home summary
+app/questionnaires/ question definitions, branching, drafts, priorities
 app/users/         the domain user profile (separate from the auth identity)
 app/audit/         audit events
 app/integrations/  external provider adapters (email so far)
@@ -40,8 +42,7 @@ abstractions"). Target module list from
 `docs/04_BACKEND_ARCHITECTURE.md` section 1:
 
 ```text
-households/ profiles/                     Phase 3 onwards
-questionnaires/                           Phase 4
+households/ profiles/                     later
 recommendations/ scoring/                 Phase 9
 products/ pricing/                        Phase 8
 policies/ documents/                      Phases 10-11

@@ -150,6 +150,23 @@ nullable continue action, and the conditional modules from
 `docs/01_PRODUCT_SPEC.md` section 5. Flagged so the contracts document can be
 updated deliberately.
 
+## 14. `QuestionDefinition` cannot express "choose up to 3" — Phase 4 (implemented)
+
+`docs/01_PRODUCT_SPEC.md` section 2.3 says "Choose up to 3 things that matter
+most", but the `QuestionDefinition` schema in
+`docs/03_FRONTEND_ARCHITECTURE.md` section 3 has no field for a selection
+limit.
+
+**Resolved by adding** `maxSelections` (MULTI_CHOICE only). Also added
+`sensitive`, because `docs/05_DATA_MODEL.md` section 2 requires sensitive
+fields to be flagged in metadata and the schema has no way to say so. Both are
+enforced server-side.
+
+## 15. Phase 4 also has no "Done when" section
+
+Same gap as issue 11. Phase 4 was held to its build list plus `CLAUDE.md`'s
+definition of done; the resulting checklist is in `docs/PHASE_4_NOTES.md`.
+
 ---
 
 ## Resolved in Phase 0
@@ -206,3 +223,20 @@ new-user home, but none of their flows exist before Phase 4, and
 every card as specified while showing its action only once the flow works,
 driven by per-feature configuration. Motor stays off by default per open
 item 8. Details in `docs/PHASE_3_NOTES.md`.
+
+## Resolved in Phase 4
+
+### "Find my matches" before matching exists
+
+`docs/01_PRODUCT_SPEC.md` section 2.4 specifies "Find my matches" as the
+review action, but the matching engine is Phase 9. The button reads "Save my
+answers" until matching exists; the specified wording is already wired behind
+a flag and appears the moment Phase 9 lands. Promising matches the product
+cannot produce would be an unsupported UI claim.
+
+### Seeding questions against an open decision
+
+Open item 6 leaves question wording undecided. The seeded set is marked
+`DRAFT` and draws every field from the candidate lists the specification
+already provides, rather than inventing new ones. It still needs the founder's
+wording pass — see `docs/PHASE_4_NOTES.md`.
