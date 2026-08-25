@@ -49,6 +49,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_2_NOTES.md`](docs/PHASE_2_NOTES.md) ·
 [`docs/PHASE_3_NOTES.md`](docs/PHASE_3_NOTES.md) ·
 [`docs/PHASE_4_NOTES.md`](docs/PHASE_4_NOTES.md) ·
+[`docs/PHASE_5_NOTES.md`](docs/PHASE_5_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -62,7 +63,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 2 — Beta auth | ✅ Complete |
 | 3 — Home | ✅ Complete |
 | 4 — Questionnaire engine | ✅ Complete |
-| 5–17 | ⬜ Not started |
+| 5 — Mock recommendation experience | ✅ Complete |
+| 6–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -161,3 +163,5 @@ make test
   question means a new version, never an edit.
 - **Sensitive answers are flagged at the question and on the stored answer**,
   so nothing can send them to logs or analytics by accident.
+- **Every insurance product in this build is invented** and labelled as such.
+  No premium is shown anywhere, and no ranking is produced by an LLM.

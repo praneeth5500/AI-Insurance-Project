@@ -1,7 +1,7 @@
 "use client";
 
 import { postJson, requestJson } from "@/lib/api/client";
-import type { ApiResult, QuestionnaireSession } from "@/lib/api/types";
+import type { ApiResult, QuestionnaireSession, RecommendationRun } from "@/lib/api/types";
 
 const BASE = "/api/v1/questionnaire-sessions";
 
@@ -29,4 +29,13 @@ export async function saveAnswer(
 
 export async function completeSession(sessionId: string): Promise<ApiResult<QuestionnaireSession>> {
   return postJson<QuestionnaireSession>(`${BASE}/${sessionId}/complete`, {});
+}
+
+/** Turn a completed questionnaire into a match set. */
+export async function createRecommendationRun(
+  questionnaireSessionId: string,
+): Promise<ApiResult<RecommendationRun>> {
+  return postJson<RecommendationRun>("/api/v1/recommendation-runs", {
+    questionnaireSessionId,
+  });
 }

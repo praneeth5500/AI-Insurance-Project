@@ -162,6 +162,60 @@ export type QuestionnaireSession = {
   isComplete: boolean;
 };
 
+// ------------------------------------------------------ recommendations ----
+
+/** docs/01_PRODUCT_SPEC.md section 2.6. Never conveyed by colour alone. */
+export type FitLabel = "STRONG" | "GOOD" | "TRADE_OFF" | "NEEDS_ATTENTION" | "UNVERIFIED";
+
+export type FitView = {
+  factor: string;
+  label: string;
+  fit: FitLabel;
+  note: string;
+};
+
+/** Never a bare number: state, source and reason always travel with it. */
+export type PriceView = {
+  state: "INDICATIVE" | "QUOTED" | "FINAL" | "UNAVAILABLE";
+  amount: number | null;
+  currency: string | null;
+  sourceType: string;
+  generatedAt: string | null;
+  explanation: string;
+};
+
+export type MatchView = {
+  id: string;
+  productReference: string;
+  insurerName: string;
+  productName: string;
+  sourceType: string;
+  presentationOrder: number;
+  eligibilityStatus: string;
+  highlights: FitView[];
+  watchOut: string;
+  fits: FitView[];
+  price: PriceView;
+};
+
+/** `GET /api/v1/recommendation-runs/{runId}` */
+export type RecommendationRun = {
+  id: string;
+  status: string;
+  presentationMode: string;
+  sourceType: string;
+  questionnaireVersion: string;
+  scoringVersion: string;
+  catalogueVersion: string;
+  createdAt: string;
+  decisionProfile: string[];
+  priorities: string[];
+  matches: MatchView[];
+  additionalMatches: MatchView[];
+  canShowMore: boolean;
+  reordered: string[];
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";

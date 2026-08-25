@@ -5,7 +5,10 @@ import { useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { completeSession } from "@/features/questionnaire/questionnaire-client";
+import {
+  completeSession,
+  createRecommendationRun,
+} from "@/features/questionnaire/questionnaire-client";
 import { ReviewSection } from "@/features/questionnaire/review-section";
 import type { QuestionnaireSession } from "@/lib/api/types";
 
@@ -36,14 +39,31 @@ export function ReviewClient({
     setError(undefined);
 
     const result = await completeSession(session.id);
-    setSubmitting(false);
 
     if (result.status === "error") {
+      setSubmitting(false);
       setError(result.error.message);
       return;
     }
     setSession(result.data);
-    router.refresh();
+
+    if (!matchingAvailable) {
+      setSubmitting(false);
+      router.refresh();
+      return;
+    }
+
+    // Completing produces the match set; the user goes straight to it.
+    const run = await createRecommendationRun(session.id);
+    setSubmitting(false);
+
+    if (run.status === "error") {
+      // The answers are saved either way — say so rather than implying loss.
+      setError(run.error.message);
+      router.refresh();
+      return;
+    }
+    router.replace(`/app/recommendations/${run.data.id}`);
   }
 
   if (submitted) {

@@ -49,15 +49,17 @@ export default async function HealthReviewPage() {
           description="Check anything that looks wrong before you finish. You can edit each section."
         />
 
-        {/* Matching is Phase 9. Until it exists the review says so rather than
-            promising results the product cannot produce. */}
-        <ReviewClient initialSession={session} matchingAvailable={false} />
+        {/* Phase 5 produces a match set from synthetic products, so the
+            specified "Find my matches" wording is now honest. The results
+            screen labels the products as demo content. */}
+        <ReviewClient initialSession={session} matchingAvailable />
 
-        <p className="text-meta text-secondary">
-          <Link href="/app/home" className="text-accent underline">
-            Back to home
-          </Link>
-        </p>
+        <Link
+          href="/app/home"
+          className="inline-flex min-h-touch items-center self-start text-support text-accent underline"
+        >
+          Back to home
+        </Link>
       </div>
     </PageContainer>
   );

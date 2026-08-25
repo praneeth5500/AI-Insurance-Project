@@ -29,6 +29,7 @@ if config.config_file_name is not None:
 from app.audit import models as audit_models  # noqa: E402,F401
 from app.auth import models as auth_models  # noqa: E402,F401
 from app.questionnaires import models as questionnaire_models  # noqa: E402,F401
+from app.recommendations import models as recommendation_models  # noqa: E402,F401
 from app.users import models as user_models  # noqa: E402,F401
 
 target_metadata = Base.metadata

@@ -167,6 +167,13 @@ enforced server-side.
 Same gap as issue 11. Phase 4 was held to its build list plus `CLAUDE.md`'s
 definition of done; the resulting checklist is in `docs/PHASE_4_NOTES.md`.
 
+## 16. Phase 5 has no "Done when" section either
+
+The third phase in a row (see issues 11 and 15). Phase 5 was held to its build
+list plus `CLAUDE.md`'s definition of done; the checklist is in
+`docs/PHASE_5_NOTES.md`. Worth a single decision covering Phases 3 onwards
+rather than one per phase.
+
 ---
 
 ## Resolved in Phase 0
@@ -240,3 +247,21 @@ Open item 6 leaves question wording undecided. The seeded set is marked
 `DRAFT` and draws every field from the candidate lists the specification
 already provides, rather than inventing new ones. It still needs the founder's
 wording pass — see `docs/PHASE_4_NOTES.md`.
+
+## Resolved in Phase 5
+
+### A recommendation experience before the recommendation engine
+
+Phase 5 asks for the results UX before the engine that produces real
+matches. Handled by making the prototype nature unmissable: fictional insurer
+names, no premium at all, a persistent "Demo products" notice, no overall
+score, and a run that records `prototype-ordering-001` as what produced it.
+Each constraint is enforced by a test. See `docs/PHASE_5_NOTES.md`.
+
+### Showing a price for a synthetic product
+
+`docs/12_BETA_CHECKLIST.md` requires every displayed premium to carry a state,
+source and timestamp; `CLAUDE.md` forbids inventing a premium. Resolved by
+carrying no price and rendering an explicit "No price available" state that
+says why. Raised as an open question — a labelled synthetic price would let
+the price UI be tested, but that is the founder's call.
