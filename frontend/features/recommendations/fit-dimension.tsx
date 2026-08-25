@@ -38,7 +38,10 @@ export function FitBadge({ fit }: { fit: FitLabel }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-control px-2 py-0.5 text-meta font-medium",
+        // self-start keeps the badge hugging its text inside a column layout;
+        // without it a flex parent stretches it into a full-width bar.
+        "inline-flex w-fit items-center gap-1 self-start rounded-control px-2 py-0.5",
+        "text-meta font-medium",
         surface,
         tone,
       )}

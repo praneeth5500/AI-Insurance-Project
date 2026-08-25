@@ -174,6 +174,18 @@ list plus `CLAUDE.md`'s definition of done; the checklist is in
 `docs/PHASE_5_NOTES.md`. Worth a single decision covering Phases 3 onwards
 rather than one per phase.
 
+## 17. `POST /comparisons` names `productVersionIds`, and has no table
+
+`docs/08_API_CONTRACTS.md` section 6 sends `productVersionIds`, but product
+versions are Phase 8; until then the identifiers are synthetic product
+references, so the field is named `productReferences` for what it actually
+carries. It becomes `productVersionIds` when product versions exist.
+
+`docs/05_DATA_MODEL.md` also defines no `comparisons` table. None was added: a
+comparison is derived from a recommendation run plus a selection, both already
+stored, and persisting it would create a record that can silently disagree
+with the run it came from.
+
 ---
 
 ## Resolved in Phase 0
@@ -265,3 +277,13 @@ source and timestamp; `CLAUDE.md` forbids inventing a premium. Resolved by
 carrying no price and rendering an explicit "No price available" state that
 says why. Raised as an open question — a labelled synthetic price would let
 the price UI be tested, but that is the founder's call.
+
+## Resolved in Phase 6
+
+### Ranking differences without producing a score
+
+The comparison must lead with the biggest differences, but any visible
+"difference size" would be a score by another name — which
+`docs/01_PRODUCT_SPEC.md` section 2.5 rules out. Resolved by using the spread
+between fit labels for ordering only and never serialising it. Enforced by a
+test.

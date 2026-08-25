@@ -16,8 +16,9 @@ from typing import Literal
 
 from app.core.schema import ApiModel
 from app.products.catalogue import FACTOR_LABELS, FitLabel
+from app.recommendations.comparison import DimensionComparison
 from app.recommendations.models import RecommendationCandidate
-from app.recommendations.service import PRIMARY_MATCH_COUNT, RunResult
+from app.recommendations.service import PRIMARY_MATCH_COUNT, ComparisonResult, RunResult
 
 #: docs/01_PRODUCT_SPEC.md section 7 pricing states, plus the honest fourth
 #: case: there is no price to show at all.
@@ -167,3 +168,84 @@ class UpdatePrioritiesRequest(ApiModel):
     """
 
     priorities: list[str]
+
+
+class DimensionView(ApiModel):
+    """One fit dimension across the compared options.
+
+    `values` and `notes` are keyed by product reference. No numeric spread is
+    exposed: how far apart the labels are decides the order, and the order is
+    the answer — a difference "size" on screen would be a score by another
+    name.
+    """
+
+    factor: str
+    label: str
+    values: dict[str, FitLabel]
+    notes: dict[str, str]
+    differs: bool
+    is_priority: bool
+
+
+class ComparisonOptionView(ApiModel):
+    product_reference: str
+    insurer_name: str
+    product_name: str
+    source_type: str
+    watch_out: str
+
+
+class ComparisonView(ApiModel):
+    """docs/02_UX_UI_SPEC.md section 10 order: differences, priorities, details."""
+
+    run_id: str
+    source_type: str
+    options: list[ComparisonOptionView]
+    priorities: list[str]
+    biggest_differences: list[DimensionView]
+    your_priorities: list[DimensionView]
+    all_details: list[DimensionView]
+
+    @classmethod
+    def of(cls, result: ComparisonResult) -> ComparisonView:
+        def dimension(entry: DimensionComparison) -> DimensionView:
+            return DimensionView(
+                factor=entry.factor,
+                label=entry.label,
+                values=entry.values,
+                notes=entry.notes,
+                differs=entry.differs,
+                is_priority=entry.is_priority,
+            )
+
+        return cls(
+            run_id=result.run.id,
+            source_type=result.run.source_type,
+            options=[
+                ComparisonOptionView(
+                    product_reference=candidate.product_reference,
+                    insurer_name=candidate.reason_summary_json.get("insurerName", ""),
+                    product_name=candidate.reason_summary_json.get("productName", ""),
+                    source_type=candidate.reason_summary_json.get("sourceType", "SYNTHETIC"),
+                    watch_out=candidate.reason_summary_json.get("watchOut", ""),
+                )
+                for candidate in result.options
+            ],
+            priorities=result.priorities,
+            biggest_differences=[dimension(entry) for entry in result.differences],
+            your_priorities=[dimension(entry) for entry in result.priority_view],
+            all_details=[dimension(entry) for entry in result.all_dimensions],
+        )
+
+
+class CreateComparisonRequest(ApiModel):
+    """docs/08_API_CONTRACTS.md section 6.
+
+    The contract names `productVersionIds`. Product versions arrive in
+    Phase 8; until then the identifiers are synthetic product references, so
+    the field is named for what it actually carries. Recorded in
+    docs/SPEC_ISSUES.md.
+    """
+
+    recommendation_run_id: str
+    product_references: list[str]

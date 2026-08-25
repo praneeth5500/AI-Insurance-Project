@@ -50,6 +50,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_3_NOTES.md`](docs/PHASE_3_NOTES.md) ·
 [`docs/PHASE_4_NOTES.md`](docs/PHASE_4_NOTES.md) ·
 [`docs/PHASE_5_NOTES.md`](docs/PHASE_5_NOTES.md) ·
+[`docs/PHASE_6_NOTES.md`](docs/PHASE_6_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -64,7 +65,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 3 — Home | ✅ Complete |
 | 4 — Questionnaire engine | ✅ Complete |
 | 5 — Mock recommendation experience | ✅ Complete |
-| 6–17 | ⬜ Not started |
+| 6 — Comparison | ✅ Complete |
+| 7–17 | ⬜ Not started |
 
 ## Repository layout
 

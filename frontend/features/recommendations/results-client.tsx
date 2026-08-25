@@ -147,6 +147,7 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
           setSelected((current) => current.filter((item) => item !== reference))
         }
         onClear={() => setSelected([])}
+        runId={run.id}
       />
     </div>
   );

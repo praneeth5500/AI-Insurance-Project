@@ -224,15 +224,18 @@ describe("ResultsClient", () => {
     expect(screen.queryByText(/selected to compare/)).toBeNull();
   });
 
-  it("does not offer a comparison view that is not built", async () => {
+  it("needs two options before comparison is offered", async () => {
     const user = userEvent.setup();
     render(<ResultsClient initialRun={run()} />);
 
-    await user.click(screen.getAllByRole("checkbox", { name: /Compare/ })[0]!);
-    expect(
-      (screen.getByRole("button", { name: "Compare side by side" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(screen.getByText(/Side-by-side comparison is being built/)).toBeDefined();
+    const boxes = screen.getAllByRole("checkbox", { name: /Compare/ });
+    await user.click(boxes[0]!);
+    expect(screen.queryByRole("link", { name: "Compare side by side" })).toBeNull();
+    expect(screen.getByText("Pick one more option to compare.")).toBeDefined();
+
+    await user.click(boxes[1]!);
+    const link = screen.getByRole("link", { name: "Compare side by side" });
+    expect(link.getAttribute("href")).toBe("/app/recommendations/rr_1/compare?options=sp_1,sp_2");
   });
 
   it("sends changed priorities to the server and explains what moved", async () => {
@@ -352,7 +355,7 @@ describe("DecisionProfileSummary", () => {
 describe("CompareTray", () => {
   it("renders nothing when nothing is selected", () => {
     const { container } = render(
-      <CompareTray selected={[]} onRemove={vi.fn()} onClear={vi.fn()} />,
+      <CompareTray selected={[]} onRemove={vi.fn()} onClear={vi.fn()} runId="rr_1" />,
     );
 
     expect(container.firstChild).toBeNull();

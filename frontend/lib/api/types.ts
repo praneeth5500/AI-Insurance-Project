@@ -216,6 +216,37 @@ export type RecommendationRun = {
   reordered: string[];
 };
 
+// ---------------------------------------------------------- comparison ----
+
+export type DimensionView = {
+  factor: string;
+  label: string;
+  /** Keyed by product reference. */
+  values: Record<string, FitLabel>;
+  notes: Record<string, string>;
+  differs: boolean;
+  isPriority: boolean;
+};
+
+export type ComparisonOptionView = {
+  productReference: string;
+  insurerName: string;
+  productName: string;
+  sourceType: string;
+  watchOut: string;
+};
+
+/** `POST /api/v1/comparisons` */
+export type ComparisonView = {
+  runId: string;
+  sourceType: string;
+  options: ComparisonOptionView[];
+  priorities: string[];
+  biggestDifferences: DimensionView[];
+  yourPriorities: DimensionView[];
+  allDetails: DimensionView[];
+};
+
 /** `GET /health/ready` */
 export type ReadinessResponse = {
   status: "ready";

@@ -28,3 +28,19 @@ class TooManyComparisonsError(AppError):
     http_status = 422
     retryable = False
     message = "You can compare up to 3 options at a time."
+
+
+class TooFewComparisonsError(AppError):
+    code = "TOO_FEW_COMPARISONS"
+    http_status = 422
+    retryable = False
+    message = "Choose at least 2 options to compare."
+
+
+class ComparisonOptionNotInRunError(AppError):
+    """A comparison can only contain options from the run it belongs to."""
+
+    code = "COMPARISON_OPTION_NOT_IN_RUN"
+    http_status = 422
+    retryable = False
+    message = "One of those options isn't part of these matched results."

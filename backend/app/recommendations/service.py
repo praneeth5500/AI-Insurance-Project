@@ -24,9 +24,18 @@ from app.products.catalogue import CATALOGUE_VERSION, SyntheticProduct, all_prod
 from app.products.provenance import SYNTHETIC
 from app.questionnaires import service as questionnaire_service
 from app.questionnaires.models import STATUS_COMPLETED
+from app.recommendations.comparison import (
+    DimensionComparison,
+    biggest_differences,
+    build_dimensions,
+    priority_dimensions,
+)
 from app.recommendations.errors import (
+    ComparisonOptionNotInRunError,
     QuestionnaireNotCompleteError,
     RecommendationRunNotFoundError,
+    TooFewComparisonsError,
+    TooManyComparisonsError,
 )
 from app.recommendations.models import (
     PRESENTATION_BETA_MATCH_SET,
@@ -217,3 +226,73 @@ async def update_priorities(
 
 def product_for(candidate: RecommendationCandidate) -> SyntheticProduct | None:
     return get_product(candidate.product_reference)
+
+
+#: docs/01_PRODUCT_SPEC.md section 2.7 and docs/02_UX_UI_SPEC.md section 10.
+MIN_COMPARISON = 2
+MAX_COMPARISON = 3
+
+
+@dataclass(frozen=True)
+class ComparisonResult:
+    run: RecommendationRun
+    options: list[RecommendationCandidate]
+    priorities: list[str]
+    differences: list[DimensionComparison]
+    priority_view: list[DimensionComparison]
+    all_dimensions: list[DimensionComparison]
+
+
+async def compare(
+    db: AsyncSession, *, user: User, run_id: str, product_references: list[str]
+) -> ComparisonResult:
+    """Compare 2 or 3 options from a run.
+
+    The limit is enforced here rather than only in the UI: the beta checklist
+    requires "Compare max 3", and a client is not the place to guarantee it.
+    """
+    # Deduplicate while preserving the order the user picked them in.
+    references = list(dict.fromkeys(product_references))
+
+    if len(references) < MIN_COMPARISON:
+        raise TooFewComparisonsError
+    if len(references) > MAX_COMPARISON:
+        raise TooManyComparisonsError
+
+    result = await get_run(db, user=user, run_id=run_id)
+    by_reference = {candidate.product_reference: candidate for candidate in result.candidates}
+
+    missing = [reference for reference in references if reference not in by_reference]
+    if missing:
+        raise ComparisonOptionNotInRunError
+
+    options = [by_reference[reference] for reference in references]
+
+    fits_by_product: dict[str, dict[str, tuple[str, str]]] = {
+        candidate.product_reference: {
+            entry["factor"]: (entry["label"], entry["note"])
+            for entry in candidate.reason_summary_json.get("fits", [])
+        }
+        for candidate in options
+    }
+
+    dimensions = build_dimensions(fits_by_product, result.priorities)
+
+    logger.info(
+        "comparison_built",
+        extra=log_fields(
+            event="comparison_built",
+            user_id=user.id,
+            resource_type="recommendation_run",
+            resource_id=run_id,
+        ),
+    )
+
+    return ComparisonResult(
+        run=result.run,
+        options=options,
+        priorities=result.priorities,
+        differences=biggest_differences(dimensions),
+        priority_view=priority_dimensions(dimensions),
+        all_dimensions=dimensions,
+    )

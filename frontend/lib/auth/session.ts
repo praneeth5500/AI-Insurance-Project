@@ -23,16 +23,19 @@ export const SESSION_COOKIE_NAME = "insurance_session";
  * Returns null when there is no session or the request fails, so callers must
  * decide what to render — a protected page fails closed rather than pretending.
  */
-export async function fetchAsUser(path: string): Promise<Response | null> {
+export async function fetchAsUser(path: string, init?: RequestInit): Promise<Response | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE_NAME);
   if (!session) return null;
 
   try {
     return await fetch(`${apiBaseUrl()}${path}`, {
+      ...init,
       headers: {
         Accept: "application/json",
+        "Content-Type": "application/json",
         Cookie: `${SESSION_COOKIE_NAME}=${session.value}`,
+        ...init?.headers,
       },
       cache: "no-store",
     });

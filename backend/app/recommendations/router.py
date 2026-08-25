@@ -6,9 +6,18 @@ from fastapi import APIRouter
 
 from app.auth.dependencies import CurrentUser, DbSession
 from app.recommendations import service
-from app.recommendations.schemas import CreateRunRequest, RunView, UpdatePrioritiesRequest
+from app.recommendations.schemas import (
+    ComparisonView,
+    CreateComparisonRequest,
+    CreateRunRequest,
+    RunView,
+    UpdatePrioritiesRequest,
+)
 
 router = APIRouter(prefix="/recommendation-runs", tags=["recommendations"])
+
+#: docs/08_API_CONTRACTS.md section 6 puts comparisons at their own path.
+comparison_router = APIRouter(prefix="/comparisons", tags=["recommendations"])
 
 
 @router.post("", response_model=RunView, summary="Produce a match set")
@@ -50,3 +59,16 @@ async def update_priorities(
         if index >= len(previous_order) or previous_order[index] != reference
     ]
     return RunView.of(result, reordered=moved)
+
+
+@comparison_router.post("", response_model=ComparisonView, summary="Compare 2 or 3 options")
+async def create_comparison(
+    payload: CreateComparisonRequest, user: CurrentUser, db: DbSession
+) -> ComparisonView:
+    result = await service.compare(
+        db,
+        user=user,
+        run_id=payload.recommendation_run_id,
+        product_references=payload.product_references,
+    )
+    return ComparisonView.of(result)

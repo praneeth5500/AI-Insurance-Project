@@ -3,11 +3,12 @@
 FastAPI + Pydantic + SQLAlchemy (async) + PostgreSQL, built as a **modular
 monolith** (`docs/04_BACKEND_ARCHITECTURE.md`).
 
-## Phase 5 status
+## Phase 6 status
 
 Foundation, beta authentication, the home summary, the adaptive questionnaire
 engine, and a mock recommendation experience over a synthetic product
-catalogue. The real matching engine is Phase 9.
+catalogue, with side-by-side comparison of 2 or 3 options. The real matching
+engine is Phase 9.
 
 ## Commands
 

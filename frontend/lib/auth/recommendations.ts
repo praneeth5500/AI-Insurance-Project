@@ -1,4 +1,4 @@
-import type { ApiResult, AppError, RecommendationRun } from "@/lib/api/types";
+import type { ApiResult, AppError, ComparisonView, RecommendationRun } from "@/lib/api/types";
 import { fetchAsUser } from "@/lib/auth/session";
 
 const NETWORK_ERROR: AppError = {
@@ -44,4 +44,42 @@ export async function getRecommendationRun(runId: string): Promise<ApiResult<Rec
   }
 
   return { status: "success", data: body as RecommendationRun };
+}
+
+/**
+ * Build a comparison server-side.
+ *
+ * `POST` per docs/08_API_CONTRACTS.md section 6. The chosen options travel in
+ * the URL so the page can be reloaded, shared and navigated back to, while
+ * the comparison itself is still computed by the API — the 2-to-3 limit is
+ * enforced there, not by the client.
+ */
+export async function getComparison(
+  runId: string,
+  productReferences: string[],
+): Promise<ApiResult<ComparisonView>> {
+  const response = await fetchAsUser("/api/v1/comparisons", {
+    method: "POST",
+    body: JSON.stringify({ recommendationRunId: runId, productReferences }),
+  });
+  if (response === null) return { status: "error", error: NETWORK_ERROR };
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { status: "error", error: UNEXPECTED_ERROR };
+  }
+
+  if (!response.ok) {
+    const envelope = (body as { error?: unknown }).error;
+    return {
+      status: "error",
+      error: isAppError(envelope)
+        ? { ...envelope, requestId: envelope.requestId ?? null }
+        : UNEXPECTED_ERROR,
+    };
+  }
+
+  return { status: "success", data: body as ComparisonView };
 }
