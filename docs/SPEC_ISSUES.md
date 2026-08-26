@@ -276,6 +276,30 @@ maximum number of children, never the children's ages.
 omitted rather than guessed, because an invented age rule could wrongly exclude
 a product a family can actually buy.
 
+## 25. Upload contract assumes presigned URLs — Phase 10
+
+`docs/08_API_CONTRACTS.md` section 7 says `POST /api/v1/policies/uploads`
+"returns presigned/private upload instructions or upload session". Presigning
+requires an object store, and none is chosen
+(`docs/13_DECISIONS_AND_OPEN_ITEMS.md` leaves the vendor open).
+
+**Resolved in Phase 10** by implementing the other half of that sentence: the
+file is posted to the API, which determines its type from the bytes before
+anything is written. The `FileStorage` interface is shaped so a presigned flow
+can be added without changing callers. Worth confirming when a bucket is
+chosen, because presigning moves validation *after* the write and that changes
+the ordering guarantees this phase relies on.
+
+## 26. No upload size or document-count limit is specified — Phase 10
+
+Neither `docs/12_BETA_CHECKLIST.md` ("file limit enforced") nor the deployment
+spec names a number.
+
+**Impact:** 20 MB per file and 5 documents per policy are my defaults, both
+configuration.
+**Options:** confirm, or set your own once you have seen what real policy PDFs
+weigh.
+
 ---
 
 ## Resolved in Phase 0
@@ -450,3 +474,14 @@ Resolved by evaluating budget honestly as "not enough verified data", which
 drops it out of the weighting entirely rather than scoring it as average. The
 branch that evaluates a real price is written and tested — it simply has
 nothing to read yet.
+
+## Resolved in Phase 10
+
+### A privacy claim the implementation has to earn
+
+`docs/02_UX_UI_SPEC.md` section 13 supplies the line "Your policy is stored
+privately and is only used to generate your analysis" and adds: "Only use this
+copy if implementation supports it." Resolved by making it true before using
+it — private storage that refuses to run outside local, no public URL and no
+signed link, ownership re-checked on every read, and a delete path that reports
+honestly when it cannot confirm removal.

@@ -71,7 +71,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 7 — Product detail | ✅ Complete |
 | 8 — Real data domain layer | ✅ Complete |
 | 9 — Matching engine | ✅ Complete |
-| 10–17 | ⬜ Not started |
+| 10 — Policy upload | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
+| 11–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -201,6 +202,11 @@ make test
 - **A recommendation run is immutable.** Changing a priority creates a new run
   linked to the old one; a stored result is never rewritten, and the code
   raises rather than allowing an in-place edit.
+- **An uploaded policy is never publicly reachable.** No public URL, no signed
+  link — documents stream through an authenticated route that re-checks
+  ownership on every request, and deletion is auditable.
+- **A file's type is read from its bytes**, never from the filename or the
+  `Content-Type` the browser claimed.
 - **Every fit judgement stores its evidence** — the product facts, the reader's
   answers and the threshold that produced it — so a result can be explained
   months later without re-running anything.

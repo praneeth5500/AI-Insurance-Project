@@ -314,3 +314,53 @@ export type ReadinessResponse = {
     database: "ok" | "unavailable";
   };
 };
+
+// ------------------------------------------------------ uploaded policies ----
+
+/**
+ * One step of processing (docs/02_UX_UI_SPEC.md section 14).
+ *
+ * Stages, never a percentage: any percentage here would be invented, and the
+ * UX spec rules out fake progress.
+ */
+export type PolicyStage = {
+  key: string;
+  label: string;
+  state: "DONE" | "CURRENT" | "PENDING";
+};
+
+export type PolicyDocumentView = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  pageCount: number | null;
+  createdAt: string;
+};
+
+/** `GET /api/v1/policies/{policyId}` */
+export type UploadedPolicy = {
+  id: string;
+  displayName: string;
+  domain: string | null;
+  status: string;
+  statusLabel: string;
+  stages: PolicyStage[];
+  isReady: boolean;
+  isFailed: boolean;
+  /** Present only on failure, in language the reader can act on. */
+  failureMessage: string | null;
+  documents: PolicyDocumentView[];
+  createdAt: string;
+  readyAt: string | null;
+};
+
+export type UploadedPolicySummary = {
+  id: string;
+  displayName: string;
+  status: string;
+  statusLabel: string;
+  isReady: boolean;
+  isFailed: boolean;
+  createdAt: string;
+};

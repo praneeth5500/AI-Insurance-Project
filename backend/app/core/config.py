@@ -9,6 +9,7 @@ environment without an explicit DATABASE_URL
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -76,6 +77,31 @@ class Settings(BaseSettings):
     feature_health_recommendation: bool = True
     feature_motor_recommendation: bool = False
     feature_policy_decoder: bool = False
+
+    # ------------------------------------------------------------ uploads --
+    # docs/09_AWS_DEPLOYMENT.md section 5: block public access, encrypt at
+    # rest, separate by environment, signed temporary URLs, a lifecycle
+    # policy, a deletion path, and MIME validation before processing. The
+    # bucket itself is not chosen yet, so storage sits behind an interface and
+    # local development writes to a private directory instead.
+    #
+    # The directory is deliberately *outside* the repository and outside
+    # anything the web server serves: an uploaded policy is a private document
+    # and CLAUDE.md forbids exposing one publicly.
+    # Defaults under the developer's home directory rather than a shared
+    # temp directory: /tmp and /var/tmp are readable by every account on the
+    # machine, which is not where a private policy document belongs even in
+    # development. Deployed environments set this or, better, configure an
+    # object-storage adapter instead.
+    upload_storage_dir: str = str(Path.home() / ".insurance-local-uploads")
+
+    #: Largest file accepted, in bytes. Not fixed by the specification;
+    #: 20 MB comfortably holds a scanned policy booklet.
+    max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
+
+    #: How many documents one policy may carry. A policy wording is sometimes
+    #: split across a few files (wording, schedule, endorsements).
+    max_documents_per_policy: int = Field(default=5, ge=1, le=20)
 
     #: Serve clearly-labelled synthetic modules on the returning-user home so
     #: the layout can be reviewed before the real data exists
