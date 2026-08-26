@@ -48,20 +48,34 @@ export function ProductDetailView({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="flex flex-col gap-3">
-            <h2 className="text-h3 font-medium text-primary">Why this matches you</h2>
-            <ul className="flex flex-col gap-2">
-              {product.highlights.map((highlight) => (
-                <li key={highlight.factor} className="flex flex-col gap-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-support font-medium text-primary">{highlight.label}</span>
-                    <FitBadge fit={highlight.fit} />
-                  </div>
-                  <p className="text-support text-secondary">{highlight.note}</p>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          {/*
+            Fit is a judgement about a person, so it only exists inside a set
+            of matches. Opened outside one, the page says so rather than
+            showing a "fit" that belongs to nobody.
+          */}
+          {product.fitContextNote === null ? (
+            <Card className="flex flex-col gap-3">
+              <h2 className="text-h3 font-medium text-primary">Why this matches you</h2>
+              <ul className="flex flex-col gap-2">
+                {product.highlights.map((highlight) => (
+                  <li key={highlight.factor} className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-support font-medium text-primary">
+                        {highlight.label}
+                      </span>
+                      <FitBadge fit={highlight.fit} />
+                    </div>
+                    <p className="text-support text-secondary">{highlight.note}</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : (
+            <Card className="flex flex-col gap-3">
+              <h2 className="text-h3 font-medium text-primary">What this policy does</h2>
+              <p className="text-support text-secondary">{product.fitContextNote}</p>
+            </Card>
+          )}
 
           <div className="flex flex-col gap-3">
             <h2 className="text-h3 font-medium text-primary">What to watch out for</h2>
@@ -88,14 +102,16 @@ export function ProductDetailView({
         </p>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-h2 font-semibold text-primary">How it fits you overall</h2>
-        <Card className="flex flex-col gap-4">
-          {product.fits.map((fit) => (
-            <FitDimension key={fit.factor} dimension={fit} />
-          ))}
-        </Card>
-      </section>
+      {product.fits.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-h2 font-semibold text-primary">How it fits you overall</h2>
+          <Card className="flex flex-col gap-4">
+            {product.fits.map((fit) => (
+              <FitDimension key={fit.factor} dimension={fit} />
+            ))}
+          </Card>
+        </section>
+      ) : null}
 
       {product.sections.map((section) => (
         <section key={section.key} className="flex flex-col gap-3">

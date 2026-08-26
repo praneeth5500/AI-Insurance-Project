@@ -9,7 +9,7 @@ says plainly that no document exists.
 from __future__ import annotations
 
 from app.core.schema import ApiModel
-from app.products.catalogue import FACTOR_LABELS, FitLabel
+from app.matching.factors import FACTOR_LABELS, FitLabel
 from app.products.sections import PolicySectionView
 from app.products.service import ProductDetail
 
@@ -59,6 +59,9 @@ class ProductDetailView(ApiModel):
     #: Exactly one trade-off, alongside the highlights rather than below them.
     watch_out: str
     fits: list[ProductFitView]
+    #: Empty when the reader did not open this from a result set. The UI then
+    #: shows the facts alone and says why there is no personal assessment.
+    fit_context_note: str | None = None
     sections: list[ProductSectionView]
     #: docs/01_PRODUCT_SPEC.md section 2.8 lists Source Documents as a section.
     #: Empty for synthetic products, with the reason stated.
@@ -68,10 +71,11 @@ class ProductDetailView(ApiModel):
     saved: bool
 
     @classmethod
-    def of(cls, detail: ProductDetail, *, highlight_factors: list[str]) -> ProductDetailView:
+    def of(cls, detail: ProductDetail) -> ProductDetailView:
         product = detail.product
+        highlight_factors = detail.highlights
 
-        def fit_view(factor: str, label: FitLabel, note: str) -> ProductFitView:
+        def fit_view(factor: str, label: str, note: str) -> ProductFitView:
             return ProductFitView(
                 factor=factor,
                 label=FACTOR_LABELS.get(factor, factor),
@@ -79,7 +83,10 @@ class ProductDetailView(ApiModel):
                 note=note,
             )
 
-        fits = [fit_view(fit.factor, fit.label, fit.note) for fit in product.fits]
+        # The run's own recorded judgement, not a fresh assessment: a card and
+        # the page behind it must never disagree, and an immutable run has to
+        # keep rendering what it said.
+        fits = [fit_view(entry.factor, entry.label, entry.note) for entry in detail.fits]
 
         def section_view(section: PolicySectionView) -> ProductSectionView:
             return ProductSectionView(
@@ -110,6 +117,15 @@ class ProductDetailView(ApiModel):
             highlights=[by_factor[factor] for factor in highlight_factors if factor in by_factor],
             watch_out=product.watch_out,
             fits=fits,
+            fit_context_note=(
+                None
+                if fits
+                else (
+                    "You've opened this outside a set of matches, so there's nothing here "
+                    "about how it fits you. Everything below is what the policy does, not "
+                    "what it means for you."
+                )
+            ),
             sections=[section_view(section) for section in detail.sections],
             source_documents=[],
             source_documents_note=(

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.products.catalogue import FACTOR_LABELS, PRIORITY_TO_FACTOR
+from app.matching.factors import FACTOR_LABELS, PRIORITY_TO_FACTOR
 
 #: How far apart two fit labels are. Ordering only — never shown to a user,
 #: and never combined into a total.

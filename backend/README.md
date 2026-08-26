@@ -3,13 +3,17 @@
 FastAPI + Pydantic + SQLAlchemy (async) + PostgreSQL, built as a **modular
 monolith** (`docs/04_BACKEND_ARCHITECTURE.md`).
 
-## Phase 8 status
+## Phase 9 status
 
 Foundation, beta authentication, the home summary, the adaptive questionnaire
-engine, and a mock recommendation experience over a synthetic product
-catalogue, with side-by-side comparison and a full product detail screen —
-plus the canonical product catalogue, provenance, price state, a verified-data
-importer and the provider interface. The matching engine is Phase 9.
+engine, the canonical product catalogue with provenance, price state and a
+verified-data importer — and the **deterministic matching engine**: hard
+eligibility, fit evaluators over structured facts, versioned priority
+weighting, an internal relevance value that never leaves the server, immutable
+recommendation runs, and a stored evidence trail behind every judgement.
+
+No LLM participates anywhere. `docs/11_BUILD_PLAN.md` adds AI explanation only
+after the structured output is correct, which is Phase 13.
 
 ## Commands
 
@@ -35,7 +39,8 @@ app/questionnaires/ question definitions, branching, drafts, priorities
 app/products/      canonical catalogue, provenance, freshness, importer,
                    provider interface, synthetic catalogue, saved options
 app/pricing/       price records and the rules for displaying one
-app/recommendations/ prototype ordering, decision profile, runs
+app/matching/      eligibility, fit evaluators, weighting, evidence, engine
+app/recommendations/ runs, candidates, fit components, comparison, profile
 app/users/         the domain user profile (separate from the auth identity)
 app/audit/         audit events
 app/integrations/  external provider adapters (email so far)
@@ -50,11 +55,11 @@ abstractions"). Target module list from
 
 ```text
 households/ profiles/                     later
-scoring/                                  Phase 9
+scoring/                                  Phase 9 — built as app/matching/
 recommendations/ scoring/                 Phase 9
 products/ pricing/                        Phase 8
 policies/ documents/                      Phases 10-11
-ai/                                       Phases 9, 11, 13
+ai/                                       Phases 11, 13
 claims_readiness/                         Phase 14
 integrations/                             external provider adapters
 analytics/ audit/                         Phase 15

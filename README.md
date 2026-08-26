@@ -70,7 +70,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 6 — Comparison | ✅ Complete |
 | 7 — Product detail | ✅ Complete |
 | 8 — Real data domain layer | ✅ Complete |
-| 9–17 | ⬜ Not started |
+| 9 — Matching engine | ✅ Complete |
+| 10–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -189,3 +190,17 @@ make test
 - **Stale critical data excludes a product** rather than lowering its score.
 - **A price is a state, never a bare number**, and no code path can produce
   one.
+- **Matching is deterministic and versioned.** The same answers, priorities and
+  product facts always produce the same result set, in the same order. The
+  scoring version is stored on every run.
+- **Unknown is never treated as average.** A dimension with no verified fact is
+  reported as such and left out of the weighting entirely — it cannot drag a
+  product down or prop one up.
+- **A product a reader cannot buy is removed, not ranked low**, and the screen
+  says how many were removed and under which rules — never which products.
+- **A recommendation run is immutable.** Changing a priority creates a new run
+  linked to the old one; a stored result is never rewritten, and the code
+  raises rather than allowing an in-place edit.
+- **Every fit judgement stores its evidence** — the product facts, the reader's
+  answers and the threshold that produced it — so a result can be explained
+  months later without re-running anything.

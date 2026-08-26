@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.products.catalogue import FACTOR_LABELS, PRIORITY_TO_FACTOR
+from app.matching.factors import FACTOR_LABELS, PRIORITY_TO_FACTOR
 
 COVER_FOR_PHRASES: dict[str, str] = {
     "just_me": "cover for yourself",

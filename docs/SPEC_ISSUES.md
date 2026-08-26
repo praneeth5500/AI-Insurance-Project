@@ -16,8 +16,10 @@ field, but `docs/08_API_CONTRACTS.md` section 4 returns
 `{"runId": "...", "status": "PROCESSING"}` and later `"status": "READY"`.
 
 **Impact:** the API cannot report run status from the model as specified.
-**Options:** add `status` to `recommendation_runs`, or derive it from the
-presence of candidates. Needs a decision before Phase 9 migrations.
+**Resolved in Phase 9** by keeping the `status` column added in Phase 5 and
+adding `frozen_at` beside it. A run is produced synchronously and stored as
+`READY`; `frozen_at` records when the result set stopped being able to change,
+which is what an asynchronous implementation would need later. Please confirm.
 
 ## 2. Extraction confidence is both a number and an enum — Phase 11
 
@@ -81,6 +83,11 @@ should complete in milliseconds.
 **Decision taken in Phase 0:** none — no code depends on this yet. The
 async-shaped contract is the safer envelope to keep (it permits a synchronous
 implementation that returns `READY` immediately), but this should be confirmed.
+
+**Phase 9 update:** matching is synchronous and completes in milliseconds, so
+a run is `READY` when it is created and `PROCESSING` is never returned. The
+contract's envelope still fits. Still worth confirming, because a verified
+catalogue with a partner quote call would not stay synchronous.
 
 ## 8. `Toast` is specified as a global component but has no phase — Phase 3+
 
@@ -214,6 +221,60 @@ nobody's name is attached to is not verification.
 **Resolved by adding** a NOT NULL `verified_by`, which the importer requires.
 Please confirm you want it, and what it should hold — a name, an email, or an
 internal identifier.
+
+## 21. Priority weighting has a MUST_HAVE level nothing can produce — Phase 9
+
+`docs/06_RECOMMENDATION_ENGINE.md` section 6 names three weights:
+`base_weight`, `top_priority_multiplier` and `must_have_multiplier`. The health
+questionnaire only asks for "up to 3 things that matter most" — there is no way
+for a reader to say a priority is non-negotiable.
+
+**Impact:** `must_have_multiplier` is defined in the versioned configuration
+and unreachable. Inventing a must-have question would be inventing a product
+decision.
+**Options:** add a "this one is non-negotiable" affordance to the priority
+question, or drop the level. A test asserts nothing currently produces it, so
+this cannot drift unnoticed.
+
+## 22. The weighting numbers are unvalidated — Phase 9
+
+`docs/06_RECOMMENDATION_ENGINE.md` section 6 supplies 1.0 / 3.0 / 5.0 as an
+"example prototype configuration concept" and says outright that they "must be
+validated through user testing and expert review before broader use". They are
+now the live values.
+
+**Impact:** with a 3× top-priority multiplier, the option that is strongest on
+the reader's top priority is not necessarily first — other dimensions can
+outweigh it. That is arguably correct (there is no single best option) but it
+is a product judgement nobody has confirmed.
+**Options:** keep and validate through user testing, or change the multiplier.
+Either way it is one line in `app/matching/weights.py` and a new
+`SCORING_VERSION`.
+
+## 23. Every fit threshold is an authored band — Phase 9
+
+The evaluators need thresholds — how many months is a "short" waiting period,
+how many hospitals is a "wide" network, how many exclusions is "a lot". No
+specification supplies any of them.
+
+**Impact:** these bands decide what a reader is told is Strong or Needs
+attention. They are consistent and visible (named constants in
+`app/matching/evaluators.py`, recorded as evidence on every judgement) but they
+are not sourced.
+**Options:** expert review before real data is used. Until then the labels are
+defensible for synthetic data and should not be shown over verified products
+without that review.
+
+## 24. Hard eligibility has no age rule for children — Phase 9
+
+The questionnaire asks how many children to cover but not their ages, and the
+data model has no children's age band. A real product does have one.
+
+**Impact:** a family policy is checked against the adults' ages and the
+maximum number of children, never the children's ages.
+**Options:** add a children's-age question and fact, or accept the gap. It is
+omitted rather than guessed, because an invented age rule could wrongly exclude
+a product a family can actually buy.
 
 ---
 
@@ -351,3 +412,41 @@ Neither the verification window (how long a verified fact stays usable) nor
 the indicative-price window is fixed anywhere in the specification. Both are
 configuration with documented defaults — 180 and 30 days — and raised in
 `docs/PHASE_8_NOTES.md` as product decisions.
+
+## Resolved in Phase 9
+
+### An engine that reads labels is not an engine
+
+Phase 5 gave every demo product hand-written fit labels. `docs/06_RECOMMENDATION_ENGINE.md`
+section 2 requires fit to be *evaluated* from structured product facts and the
+reader's own answers. Resolved by replacing the authored labels with the facts
+a label would have to be derived from, and computing the labels per reader. A
+consequence worth stating: the same product now legitimately carries different
+labels for different people, which is the point.
+
+### Fit on a page that has no reader
+
+The product detail screen showed fit labels without any user context, which
+only worked while the labels were product-level opinions. Resolved by sourcing
+the detail page's fit from the recommendation run the reader arrived from, and
+saying plainly when there is no run. The sections below it state the policy's
+facts, which are true for everyone.
+
+### A priority change that rewrote history
+
+`docs/06_RECOMMENDATION_ENGINE.md` section 10 says a priority change re-runs
+matching and persists the result; section 11 says a completed run is
+immutable; `CLAUDE.md` rule 10 forbids rewriting a result after the fact.
+Phase 5 reconciled these by treating a run as an editable draft. Resolved in
+Phase 9 by creating a **new** run that points back at the one it replaced. The
+earlier run keeps saying exactly what it said, and a mapper-level guard turns
+an accidental in-place edit into an error.
+
+### A budget dimension with no price
+
+`docs/01_PRODUCT_SPEC.md` section 2.6 lists budget as a visible fit category;
+`CLAUDE.md` forbids inventing a premium and there is no price for any product.
+Resolved by evaluating budget honestly as "not enough verified data", which
+drops it out of the weighting entirely rather than scoring it as average. The
+branch that evaluates a real price is written and tested — it simply has
+nothing to read yet.

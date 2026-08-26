@@ -20,7 +20,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.products.catalogue import all_products, get_product
-from app.products.freshness import version_usable
+from app.products.facts import CRITICAL_FACT_KEYS
+from app.products.freshness import critical_facts_usable, version_usable
 from app.products.models import InsuranceProduct, Insurer, ProductFact, ProductVersion
 from app.products.provenance import SYNTHETIC, SourceType
 
@@ -95,7 +96,9 @@ class SyntheticCatalogueProvider:
             domain="HEALTH",
             source_type=SYNTHETIC,
             version_label=product.catalogue_version,
-            facts={fit.factor: {"label": fit.label, "note": fit.note} for fit in product.fits},
+            # The structured facts themselves, in the same shape a verified
+            # version records them, so both reach the engine identically.
+            facts=product.facts.model_dump(),
             verified_at_iso=None,
             source_name=None,
             source_reference=None,
@@ -133,6 +136,8 @@ class VerifiedCatalogueProvider:
         for version, product, insurer in rows:
             if not version_usable(version).usable:
                 continue
+            if not await self._critical_facts_usable(version):
+                continue
             products.append(await self._convert(version, product, insurer))
         return products
 
@@ -151,6 +156,8 @@ class VerifiedCatalogueProvider:
         version, product, insurer = row
         if not version_usable(version).usable:
             return None
+        if not await self._critical_facts_usable(version):
+            return None
         return await self._convert(version, product, insurer)
 
     async def get_quote(self, *, reference: str, request: dict[str, Any]) -> Any:
@@ -158,6 +165,24 @@ class VerifiedCatalogueProvider:
             "No insurance partner is integrated yet, so no quote can be produced. "
             "See open item 5 in docs/13_DECISIONS_AND_OPEN_ITEMS.md."
         )
+
+    async def _critical_facts_usable(self, version: ProductVersion) -> bool:
+        """A version missing a fact the engine must have is not offered.
+
+        docs/06_RECOMMENDATION_ENGINE.md section 4 makes missing or stale
+        critical data a hard failure. Enforced here, at the seam, so no
+        consumer can reach a version the engine could only guess about.
+        """
+        facts = list(
+            (
+                await self._db.execute(
+                    select(ProductFact).where(ProductFact.product_version_id == version.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return critical_facts_usable(facts, required_keys=set(CRITICAL_FACT_KEYS)).usable
 
     async def _convert(
         self, version: ProductVersion, product: InsuranceProduct, insurer: Insurer

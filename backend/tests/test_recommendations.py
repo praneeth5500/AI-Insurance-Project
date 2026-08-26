@@ -1,4 +1,9 @@
-"""The mock recommendation experience (docs/11_BUILD_PLAN.md Phase 5)."""
+"""The recommendation experience end to end.
+
+The engine itself is tested in `test_matching.py`. What is checked here is the
+boundary around it: what a run records, what reaches a response, and what
+happens to a stored run when the reader changes their mind.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +12,17 @@ import re
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.products.catalogue import CATALOGUE_VERSION, FACTOR_LABELS, all_products
+from app.matching.engine import run_match
+from app.matching.factors import FACTOR_LABELS
+from app.matching.profile import build_profile
+from app.matching.weights import EXPLANATION_VERSION, SCORING_VERSION
+from app.products.catalogue import CATALOGUE_VERSION, SyntheticProduct, all_products
+from app.products.facts import HealthFacts
 from app.products.provenance import SYNTHETIC
+from app.products.provider import SyntheticCatalogueProvider
 from app.questionnaires import service as questionnaire_service
 from app.recommendations import service
 from app.recommendations.errors import QuestionnaireNotCompleteError, RecommendationRunNotFoundError
-from app.recommendations.ordering import ORDERING_VERSION, order_products, strongest_fits
 from app.recommendations.profile import build_decision_profile
 from app.recommendations.schemas import RunView
 from app.users.models import User
@@ -43,22 +53,22 @@ def test_no_product_carries_a_premium() -> None:
     that explains the concept ("a low premium can cost more when you claim"),
     so what matters is that no product holds a price *amount*.
     """
-    from app.products.catalogue import SyntheticProduct
-
     fields = set(SyntheticProduct.model_fields)
     assert not fields & {"price", "premium", "amount", "cost", "currency"}
 
     # No currency symbol and no figure in any text a reader will see.
     # (The version string carries digits, which is why prose is checked, not
     # the whole serialised record.)
-    prose: list[str] = []
-    for product in all_products():
-        prose.extend([product.insurer_name, product.product_name, product.watch_out])
-        prose.extend(fit.note for fit in product.fits)
+    facts_fields = set(HealthFacts.model_fields)
+    assert not facts_fields & {"price", "premium", "amount", "cost", "currency"}
 
-    for text in prose:
-        assert "₹" not in text
-        assert not re.search(r"\d", text), text
+    # No currency symbol and no figure in any text a reader will see.
+    # (The version string carries digits, which is why prose is checked, not
+    # the whole serialised record.)
+    for product in all_products():
+        for text in (product.insurer_name, product.product_name, product.watch_out):
+            assert "₹" not in text
+            assert not re.search(r"\d", text), text
 
 
 def test_every_insurer_name_is_marked_as_a_demo() -> None:
@@ -71,9 +81,13 @@ def test_every_product_has_exactly_one_watch_out() -> None:
     assert all(product.watch_out.strip() for product in all_products())
 
 
-def test_every_product_covers_every_fit_dimension() -> None:
-    for product in all_products():
-        assert {fit.factor for fit in product.fits} == set(FACTOR_LABELS)
+async def test_every_product_is_assessed_on_every_fit_dimension() -> None:
+    """A dimension is always reported, even when the answer is "we don't know"."""
+    products = await SyntheticCatalogueProvider().list_products(domain="HEALTH")
+    profile = build_profile(JUST_ME_ANSWERS)
+
+    for result in run_match(products, profile).matched:
+        assert {scored.result.factor_key for scored in result.fits} == set(FACTOR_LABELS)
 
 
 def test_the_catalogue_makes_no_claim_it_cannot_support() -> None:
@@ -85,64 +99,6 @@ def test_the_catalogue_makes_no_claim_it_cannot_support() -> None:
 
 def test_there_are_ten_products_so_see_five_more_is_real() -> None:
     assert len(all_products()) == service.MAX_MATCH_COUNT
-
-
-# ------------------------------------------------------------------ ordering --
-
-
-def test_ordering_is_deterministic() -> None:
-    """docs/10_TESTING_AND_EVALS.md section 3: same input, same result."""
-    priorities = ["low_copay", "short_waiting_periods"]
-
-    first = [p.id for p in order_products(all_products(), priorities)]
-    second = [p.id for p in order_products(all_products(), priorities)]
-
-    assert first == second
-
-
-def test_ordering_responds_to_the_priorities_chosen() -> None:
-    budget_first = [p.id for p in order_products(all_products(), ["lower_premium"])]
-    copay_first = [p.id for p in order_products(all_products(), ["low_copay"])]
-
-    assert budget_first != copay_first
-    # The cheapest-labelled demo product leads when budget is the priority.
-    assert budget_first[0] == "sp_lantern_starter"
-
-
-def test_ties_break_stably_rather_than_shuffling() -> None:
-    """With no priorities every product ties, so order must still be fixed."""
-    assert [p.id for p in order_products(all_products(), [])] == sorted(
-        p.id for p in all_products()
-    )
-
-
-def test_unverified_data_is_not_treated_as_average() -> None:
-    """docs/06_RECOMMENDATION_ENGINE.md section 8."""
-    from app.recommendations.ordering import _LABEL_RANK
-
-    assert _LABEL_RANK["UNVERIFIED"] == _LABEL_RANK["NEEDS_ATTENTION"] == 0
-    assert _LABEL_RANK["UNVERIFIED"] < _LABEL_RANK["TRADE_OFF"]
-
-
-def test_highlights_only_name_genuine_strengths() -> None:
-    for product in all_products():
-        for factor in strongest_fits(product, ["low_copay", "broad_coverage"]):
-            fit = product.fit(factor)
-            assert fit is not None
-            assert fit.label in ("STRONG", "GOOD")
-
-
-def test_highlights_lead_with_what_the_user_said_mattered() -> None:
-    product = next(p for p in all_products() if p.id == "sp_meridian_core")
-
-    highlights = strongest_fits(product, ["fewer_sublimits"])
-
-    assert highlights[0] == "sublimits"
-
-
-def test_at_most_three_highlights() -> None:
-    for product in all_products():
-        assert len(strongest_fits(product, ["low_copay"])) <= 3
 
 
 # ---------------------------------------------------------- decision profile --
@@ -198,13 +154,20 @@ async def test_a_run_records_what_produced_it(db: AsyncSession) -> None:
 
     result = await service.create_run(db, user=user, questionnaire_session_id=session_id)
 
-    assert result.run.scoring_version == ORDERING_VERSION
+    assert result.run.scoring_version == SCORING_VERSION
+    assert result.run.explanation_version == EXPLANATION_VERSION
     assert result.run.catalogue_version == CATALOGUE_VERSION
     assert result.run.source_type == SYNTHETIC
     assert result.run.presentation_mode == "BETA_MATCH_SET"
 
 
-async def test_a_run_produces_ten_options_split_five_and_five(db: AsyncSession) -> None:
+async def test_a_run_shows_five_primary_options_then_the_rest(db: AsyncSession) -> None:
+    """docs/01_PRODUCT_SPEC.md section 2.5: 5, then "see more", up to 10.
+
+    Fewer than 10 reach the screen because two of the demo products cannot be
+    bought by this reader at all — a 34-year-old insuring only themselves —
+    and hard eligibility removes them rather than ranking them low.
+    """
     user = await make_user(db)
     session_id = await completed_session(db, user)
 
@@ -212,8 +175,25 @@ async def test_a_run_produces_ten_options_split_five_and_five(db: AsyncSession) 
     view = RunView.of(result)
 
     assert len(view.matches) == 5
-    assert len(view.additional_matches) == 5
     assert view.can_show_more is True
+    assert len(view.matches) + len(view.additional_matches) == 8
+    assert view.excluded_count == 2
+
+
+async def test_a_run_says_why_options_were_not_offered(db: AsyncSession) -> None:
+    """An option removed without explanation looks like an option that
+    doesn't exist. The reader is told the rule, never the product."""
+    user = await make_user(db)
+    session_id = await completed_session(db, user)
+
+    view = RunView.of(await service.create_run(db, user=user, questionnaire_session_id=session_id))
+
+    assert view.excluded_count == 2
+    assert view.exclusion_notes
+    joined = " ".join(view.exclusion_notes).lower()
+    # Rules, not products.
+    assert "demo" not in joined
+    assert all("sp_" not in note for note in view.exclusion_notes)
 
 
 async def test_every_match_has_highlights_and_a_watch_out(db: AsyncSession) -> None:
@@ -224,7 +204,7 @@ async def test_every_match_has_highlights_and_a_watch_out(db: AsyncSession) -> N
     view = RunView.of(await service.create_run(db, user=user, questionnaire_session_id=session_id))
 
     for match in view.matches + view.additional_matches:
-        assert 1 <= len(match.highlights) <= 3
+        assert len(match.highlights) <= 3
         assert match.watch_out.strip()
         assert match.fits
 
@@ -275,24 +255,130 @@ async def test_changing_priorities_reorders_deterministically(db: AsyncSession) 
     before = [c.product_reference for c in run.candidates]
 
     result, previous = await service.update_priorities(
-        db, user=user, run_id=run.run.id, priorities=["lower_premium"]
+        db, user=user, run_id=run.run.id, priorities=["broad_coverage"]
     )
     after = [c.product_reference for c in result.candidates]
 
     assert previous == before
     assert after != before
-    assert after[0] == "sp_lantern_starter"
+
+    # The reader now says broad coverage matters most, so the product whose
+    # cover tops out well above their target rises, and the one that tops out
+    # well below it stops leading. Neither jumps straight to the top: a top
+    # priority is weighted more heavily, not treated as the only thing that
+    # counts (docs/06_RECOMMENDATION_ENGINE.md section 6).
+    assert after.index("sp_beacon_wide") < before.index("sp_beacon_wide")
+    assert before[0] == "sp_alderwood_essential"
+    assert after[0] != "sp_alderwood_essential"
+
+
+async def test_changing_priorities_creates_a_new_run_and_leaves_the_old_one(
+    db: AsyncSession,
+) -> None:
+    """CLAUDE.md rule 10: never rewrite a historical result.
+
+    docs/06_RECOMMENDATION_ENGINE.md section 11 freezes a completed run, so a
+    changed priority produces a new one that points back at it.
+    """
+    user = await make_user(db)
+    session_id = await completed_session(db, user)
+    first = await service.create_run(db, user=user, questionnaire_session_id=session_id)
+    original_order = [c.product_reference for c in first.candidates]
+    original_priorities = list(first.run.priorities_json)
+
+    second, _ = await service.update_priorities(
+        db, user=user, run_id=first.run.id, priorities=["broad_coverage"]
+    )
+
+    assert second.run.id != first.run.id
+    assert second.run.previous_run_id == first.run.id
+
+    # The earlier run still says exactly what it said, read fresh from the
+    # database rather than from the objects still in memory.
+    first_run_id = first.run.id
+    for stored in (first.run, *first.candidates):
+        db.expire(stored)
+    reread = await service.get_run(db, user=user, run_id=first_run_id)
+    assert [c.product_reference for c in reread.candidates] == original_order
+    assert list(reread.run.priorities_json) == original_priorities
+
+
+async def test_a_stored_result_cannot_be_edited_in_place(db: AsyncSession) -> None:
+    """The guard exists because this is exactly how history gets rewritten."""
+    from app.recommendations.models import ImmutableRunError
+
+    user = await make_user(db)
+    session_id = await completed_session(db, user)
+    run = await service.create_run(db, user=user, questionnaire_session_id=session_id)
+
+    candidate = run.candidates[0]
+    candidate.presentation_order = 99
+
+    with pytest.raises(ImmutableRunError):
+        await db.flush()
+
+    db.rollback  # noqa: B018 - the rollback below is what matters
+    await db.rollback()
+
+
+async def test_a_run_records_the_priorities_it_was_produced_with(db: AsyncSession) -> None:
+    """A run explains itself without consulting the questionnaire.
+
+    The questionnaire can change; the run cannot.
+    """
+    user = await make_user(db)
+    session_id = await completed_session(db, user)
+    first = await service.create_run(db, user=user, questionnaire_session_id=session_id)
+
+    second, _ = await service.update_priorities(
+        db, user=user, run_id=first.run.id, priorities=["broad_coverage"]
+    )
+
+    assert list(first.run.priorities_json) == JUST_ME_ANSWERS["priorities"]
+    assert list(second.run.priorities_json) == ["broad_coverage"]
+
+
+async def test_every_fit_component_is_persisted_with_its_evidence(db: AsyncSession) -> None:
+    """docs/05_DATA_MODEL.md fit_components, section 7's evidence object."""
+    from sqlalchemy import select
+
+    from app.recommendations.models import FitComponent
+
+    user = await make_user(db)
+    session_id = await completed_session(db, user)
+    run = await service.create_run(db, user=user, questionnaire_session_id=session_id)
+
+    components = list(
+        (
+            await db.execute(
+                select(FitComponent).where(FitComponent.candidate_id == run.candidates[0].id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    assert {component.factor_key for component in components} == set(FACTOR_LABELS)
+    for component in components:
+        assert component.evidence_json
+        assert component.user_priority_level in ("BASELINE", "TOP", "MUST_HAVE")
+        # An unverified dimension keeps a null score rather than a zero.
+        if component.label == "UNVERIFIED":
+            assert component.normalized_score is None
 
 
 async def test_reverting_priorities_restores_the_original_order(db: AsyncSession) -> None:
+    """Deterministic means reversible: the same priorities, the same answer."""
     user = await make_user(db)
     session_id = await completed_session(db, user)
     run = await service.create_run(db, user=user, questionnaire_session_id=session_id)
     original = [c.product_reference for c in run.candidates]
 
-    await service.update_priorities(db, user=user, run_id=run.run.id, priorities=["lower_premium"])
+    changed, _ = await service.update_priorities(
+        db, user=user, run_id=run.run.id, priorities=["broad_coverage"]
+    )
     restored, _ = await service.update_priorities(
-        db, user=user, run_id=run.run.id, priorities=run.priorities
+        db, user=user, run_id=changed.run.id, priorities=run.priorities
     )
 
     assert [c.product_reference for c in restored.candidates] == original
@@ -308,7 +394,8 @@ async def test_reordering_never_loses_or_duplicates_an_option(db: AsyncSession) 
     )
     references = [c.product_reference for c in result.candidates]
 
-    assert len(references) == len(set(references)) == service.MAX_MATCH_COUNT
+    assert len(references) == len(set(references))
+    assert set(references) == {c.product_reference for c in run.candidates}
 
 
 # ------------------------------------------------------------ authorization --

@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Literal
 
 from app.core.schema import ApiModel
-from app.products.catalogue import FACTOR_LABELS, FitLabel
+from app.matching.factors import FACTOR_LABELS, FitLabel
 from app.recommendations.comparison import DimensionComparison
 from app.recommendations.models import RecommendationCandidate
 from app.recommendations.service import PRIMARY_MATCH_COUNT, ComparisonResult, RunResult
@@ -89,7 +89,7 @@ class MatchView(ApiModel):
             insurer_name=payload.get("insurerName", ""),
             product_name=payload.get("productName", ""),
             source_type=payload.get("sourceType", "SYNTHETIC"),
-            presentation_order=candidate.presentation_order,
+            presentation_order=candidate.presentation_order or 0,
             eligibility_status=candidate.eligibility_status,
             # Ordered by highlightFactors, not catalogue order: strongest_fits
             # puts the reader's own priorities first and that must survive.
@@ -135,6 +135,14 @@ class RunView(ApiModel):
     #: Product references that moved after a priority change, so the UI can
     #: explain why the order is different.
     reordered: list[str] = []
+    #: The run this one replaced. A priority change creates a new run rather
+    #: than editing the old one (docs/06_RECOMMENDATION_ENGINE.md section 11).
+    previous_run_id: str | None = None
+    #: How many products were assessed and not offered, and the rules that
+    #: ruled them out. A count and reasons, never a list of rejected products:
+    #: naming them would imply an assessment we deliberately did not make.
+    excluded_count: int = 0
+    exclusion_notes: list[str] = []
 
     @classmethod
     def of(cls, result: RunResult, *, reordered: list[str] | None = None) -> RunView:
@@ -154,6 +162,9 @@ class RunView(ApiModel):
             additional_matches=views[PRIMARY_MATCH_COUNT:],
             can_show_more=len(views) > PRIMARY_MATCH_COUNT,
             reordered=reordered or [],
+            previous_run_id=result.run.previous_run_id,
+            excluded_count=result.run.excluded_count,
+            exclusion_notes=result.exclusion_notes,
         )
 
 
@@ -164,10 +175,10 @@ class CreateRunRequest(ApiModel):
 class UpdatePrioritiesRequest(ApiModel):
     """docs/08_API_CONTRACTS.md section 4 sends factor/level pairs.
 
-    Phase 5 keeps the top-3 model from onboarding, so a level of anything
-    other than the lowest counts as chosen. Finer levels
-    (docs/02_UX_UI_SPEC.md section 9) arrive with the scoring configuration
-    they feed in Phase 9.
+    The client sends the chosen priority keys. Levels are derived rather than
+    sent: the questionnaire's model is "up to three things that matter most",
+    so a listed priority is TOP and everything else is BASELINE
+    (`app.matching.weights`). A client cannot set its own weights.
     """
 
     priorities: list[str]

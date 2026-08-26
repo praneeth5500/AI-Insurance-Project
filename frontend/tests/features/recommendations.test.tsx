@@ -10,7 +10,17 @@ import { PriorityEditor } from "@/features/recommendations/priority-editor";
 import { ResultsClient } from "@/features/recommendations/results-client";
 import type { FitView, MatchView, RecommendationRun } from "@/lib/api/types";
 
-afterEach(() => vi.unstubAllGlobals());
+// A changed priority produces a new run, so the results screen moves the URL
+// to it. The mock is what lets that assertion be made at all.
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
+}));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  replace.mockClear();
+});
 
 function fit(overrides: Partial<FitView> = {}): FitView {
   return { factor: "copay", label: "Co-pay", fit: "STRONG", note: "No co-pay.", ...overrides };
@@ -24,7 +34,7 @@ function match(index: number, overrides: Partial<MatchView> = {}): MatchView {
     productName: `Plan ${index}`,
     sourceType: "SYNTHETIC",
     presentationOrder: index,
-    eligibilityStatus: "NOT_ASSESSED",
+    eligibilityStatus: "ELIGIBLE",
     highlights: [fit(), fit({ factor: "coverage", label: "Coverage", fit: "GOOD" })],
     watchOut: "Room charges are capped.",
     fits: [fit(), fit({ factor: "budget", label: "Budget", fit: "TRADE_OFF" })],
@@ -47,8 +57,8 @@ function run(overrides: Partial<RecommendationRun> = {}): RecommendationRun {
     presentationMode: "BETA_MATCH_SET",
     sourceType: "SYNTHETIC",
     questionnaireVersion: "health-beta-draft-001",
-    scoringVersion: "prototype-ordering-001",
-    catalogueVersion: "synthetic-health-001",
+    scoringVersion: "health-beta-001",
+    catalogueVersion: "synthetic-health-002",
     createdAt: "2026-08-01T00:00:00Z",
     decisionProfile: ["You're looking for cover for yourself, and you're 34."],
     priorities: ["low_copay"],
@@ -56,6 +66,9 @@ function run(overrides: Partial<RecommendationRun> = {}): RecommendationRun {
     additionalMatches: [match(6), match(7), match(8), match(9), match(10)],
     canShowMore: true,
     reordered: [],
+    previousRunId: null,
+    excludedCount: 0,
+    exclusionNotes: [],
     ...overrides,
   };
 }
@@ -187,6 +200,56 @@ describe("ResultsClient", () => {
     await user.click(screen.getByRole("button", { name: "See 5 more matches" }));
     expect(screen.getAllByRole("checkbox", { name: /Compare/ })).toHaveLength(10);
     expect(screen.queryByRole("button", { name: /See 5 more/ })).toBeNull();
+  });
+
+  it("says how many options were not a match, and why", () => {
+    render(
+      <ResultsClient
+        initialRun={run({
+          excludedCount: 2,
+          exclusionNotes: ["the age of someone to be covered is outside what the policy accepts"],
+        })}
+      />,
+    );
+
+    const note = screen.getByText(/2 other options weren't a match/);
+    expect(note.textContent).toContain("outside what the policy accepts");
+    // The rule, never the product: an excluded option was not assessed for
+    // fit, so naming it would imply a judgement we did not make.
+    expect(note.textContent).not.toContain("sp_");
+  });
+
+  it("explains an empty result set instead of showing a blank screen", () => {
+    render(
+      <ResultsClient
+        initialRun={run({
+          matches: [],
+          additionalMatches: [],
+          canShowMore: false,
+          excludedCount: 10,
+          exclusionNotes: ["the policy cannot be taken out for the people you want to cover"],
+        })}
+      />,
+    );
+
+    const empty = screen
+      .getAllByRole("status")
+      .find((node) => node.textContent?.includes("No options matched"));
+    expect(empty).toBeDefined();
+    expect(empty!.textContent).toContain("limit of this beta");
+  });
+
+  it("follows the new run when priorities change", async () => {
+    const user = userEvent.setup();
+    mockApi(run({ id: "rr_2", previousRunId: "rr_1", reordered: ["sp_2"] }));
+    render(<ResultsClient initialRun={run()} />);
+
+    await user.click(screen.getByRole("checkbox", { name: /Broad coverage/ }));
+    await user.click(screen.getByRole("button", { name: /Update my matches/ }));
+
+    // A priority change creates a new run rather than editing this one, so a
+    // refresh must not quietly return the previous result set.
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/app/recommendations/rr_2"));
   });
 
   it("labels the whole screen as demo content", () => {

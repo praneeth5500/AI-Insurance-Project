@@ -90,12 +90,19 @@ export async function getComparison(
   return { status: "success", data: body as ComparisonView };
 }
 
-/** Load one option in full, server-side. */
+/**
+ * Load one option in full, server-side.
+ *
+ * `runId` names the result set the reader came from. Fit is a judgement about
+ * a person and only exists inside a run, so with one the page shows exactly
+ * what that run recorded, and without one it shows the policy's facts and
+ * says why there is no personal assessment.
+ */
 export async function getProductDetail(
   reference: string,
-  priorities: string[],
+  runId: string | null,
 ): Promise<ApiResult<ProductDetail>> {
-  const query = priorities.length > 0 ? `?priorities=${priorities.join(",")}` : "";
+  const query = runId ? `?run=${encodeURIComponent(runId)}` : "";
   const response = await fetchAsUser(`/api/v1/products/${encodeURIComponent(reference)}${query}`);
   if (response === null) return { status: "error", error: NETWORK_ERROR };
 

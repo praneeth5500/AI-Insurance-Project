@@ -40,12 +40,13 @@ function product(overrides: Partial<ProductDetail> = {}): ProductDetail {
     highlights: [fit(), fit({ factor: "coverage", label: "Coverage", fit: "GOOD" })],
     watchOut: "Room charges are capped.",
     fits: [fit(), fit({ factor: "budget", label: "Budget", fit: "TRADE_OFF" })],
+    fitContextNote: null,
     sections: [{ key: "your-costs", label: "Your Costs", facts: [fact()] }],
     sourceDocuments: [],
     sourceDocumentsNote: "No policy document exists for a demo product.",
     provenance: {
       sourceType: "SYNTHETIC",
-      catalogueVersion: "synthetic-health-001",
+      catalogueVersion: "synthetic-health-002",
       verifiedAt: null,
       explanation: "This product is synthetic: it was invented to test this screen.",
     },
@@ -193,11 +194,33 @@ describe("ProductDetailView", () => {
     expect(screen.getAllByRole("status")[0]!.textContent).toContain("synthetic");
   });
 
+  it("says why there is no personal assessment when opened outside a run", () => {
+    render(
+      <ProductDetailView
+        product={product({
+          fits: [],
+          highlights: [],
+          fitContextNote:
+            "You've opened this outside a set of matches, so there's nothing here about how it fits you.",
+        })}
+        runId={null}
+      />,
+    );
+
+    // Fit is a judgement about a person. Without one, the page shows what the
+    // policy does and says so, rather than inventing a fit that belongs to
+    // nobody.
+    expect(screen.queryByRole("heading", { name: "Why this matches you" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "How it fits you overall" })).toBeNull();
+    expect(screen.getByText(/outside a set of matches/)).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Your Costs" })).toBeDefined();
+  });
+
   it("shows provenance rather than implying the data is verified", () => {
     render(<ProductDetailView product={product()} runId="rr_1" />);
 
     expect(screen.getByText("Not verified — demo data")).toBeDefined();
-    expect(screen.getByText("synthetic-health-001")).toBeDefined();
+    expect(screen.getByText("synthetic-health-002")).toBeDefined();
   });
 
   it("keeps a Source Documents section that explains its emptiness", () => {

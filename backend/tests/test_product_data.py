@@ -58,6 +58,46 @@ def file_payload(**overrides: object) -> dict[str, object]:
     return {"versions": [version_payload(**overrides)]}
 
 
+def matchable_facts() -> list[dict[str, object]]:
+    """The facts the engine must have before a version can be offered.
+
+    `app.products.facts.CRITICAL_FACT_KEYS` decides eligibility, so a version
+    without them cannot be matched — only withheld.
+    """
+    return [
+        {
+            "factKey": "entry_age_min",
+            "value": 18,
+            "criticalForMatching": True,
+            "sourcePage": 2,
+        },
+        {
+            "factKey": "entry_age_max",
+            "value": 65,
+            "criticalForMatching": True,
+            "sourcePage": 2,
+        },
+        {
+            "factKey": "supported_compositions",
+            "value": ["just_me", "me_spouse"],
+            "criticalForMatching": True,
+            "sourcePage": 2,
+        },
+        {
+            "factKey": "sum_insured_options_inr",
+            "value": [500000, 1000000],
+            "criticalForMatching": True,
+            "sourcePage": 3,
+        },
+        {
+            "factKey": "ped_waiting_period",
+            "value": {"months": 36},
+            "criticalForMatching": True,
+            "sourcePage": 11,
+        },
+    ]
+
+
 # ------------------------------------------------------------- the importer --
 
 
@@ -358,7 +398,7 @@ async def test_no_provider_will_invent_a_quote() -> None:
 async def test_the_verified_provider_returns_imported_products(
     db: AsyncSession,
 ) -> None:
-    await import_versions(db, file_payload())
+    await import_versions(db, file_payload(facts=matchable_facts()))
 
     products = await VerifiedCatalogueProvider(db).list_products(domain="HEALTH")
 
@@ -373,11 +413,25 @@ async def test_the_verified_provider_excludes_stale_versions(db: AsyncSession) -
     await import_versions(
         db,
         file_payload(
-            verifiedAt=(NOW - DEFAULT_MAX_VERIFICATION_AGE - timedelta(days=1)).isoformat()
+            facts=matchable_facts(),
+            verifiedAt=(NOW - DEFAULT_MAX_VERIFICATION_AGE - timedelta(days=1)).isoformat(),
         ),
     )
 
     assert await VerifiedCatalogueProvider(db).list_products(domain="HEALTH") == []
+
+
+async def test_a_version_missing_a_critical_fact_is_withheld(db: AsyncSession) -> None:
+    """docs/06_RECOMMENDATION_ENGINE.md section 4: a hard failure.
+
+    Enforced at the provider seam, so a version the engine could only guess
+    about never reaches it. The version imported fine — it is complete and
+    properly sourced — it simply does not carry what matching needs.
+    """
+    await import_versions(db, file_payload())
+
+    assert await VerifiedCatalogueProvider(db).list_products(domain="HEALTH") == []
+    assert (await db.execute(select(ProductVersion))).scalar_one() is not None
 
 
 async def test_the_verified_provider_will_not_quote_either(db: AsyncSession) -> None:

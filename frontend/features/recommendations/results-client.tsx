@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import type { MatchView, RecommendationRun } from "@/lib/api/types";
  * strengths and one watch-out.
  */
 export function ResultsClient({ initialRun }: { initialRun: RecommendationRun }) {
+  const router = useRouter();
   const [run, setRun] = useState(initialRun);
   const [showMore, setShowMore] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -70,6 +72,11 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
     }
 
     setRun(result.data);
+    // A priority change produces a *new* run rather than editing this one, so
+    // the URL has to follow it. Otherwise a refresh would quietly return the
+    // previous result set (docs/06_RECOMMENDATION_ENGINE.md section 11).
+    router.replace(`/app/recommendations/${result.data.id}`);
+
     // docs/02_UX_UI_SPEC.md section 9: a changed priority must visibly
     // explain why the results changed.
     const labels = next
@@ -111,6 +118,28 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
           </InlineAlert>
         ) : null}
 
+        {/*
+          Fewer options than the catalogue holds is normal: hard eligibility
+          removes what this reader cannot buy. Saying nothing would make the
+          missing options look like options that don't exist.
+        */}
+        {run.excludedCount > 0 ? (
+          <p className="text-support text-secondary">
+            {run.excludedCount === 1
+              ? "One other option wasn't a match for your details"
+              : `${run.excludedCount} other options weren't a match for your details`}
+            {run.exclusionNotes.length > 0 ? `: ${run.exclusionNotes.join("; ")}.` : "."}
+          </p>
+        ) : null}
+
+        {visible.length === 0 ? (
+          <InlineAlert tone="attention" title="No options matched your details">
+            None of the options we hold can be taken out for the people and ages you gave. That is a
+            limit of this beta&apos;s small demo catalogue, not advice about what exists — changing
+            your answers may find a match.
+          </InlineAlert>
+        ) : null}
+
         <ul className="flex flex-col gap-4">
           {visible.map((match, index) => (
             <li key={match.id}>
@@ -121,7 +150,7 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
                 onToggleCompare={() => toggleCompare(match.productReference)}
                 compareDisabled={selected.length >= MAX_COMPARE}
                 moved={run.reordered.includes(match.productReference)}
-                detailHref={`/app/products/${match.productReference}?from=${run.id}&priorities=${run.priorities.join(",")}`}
+                detailHref={`/app/products/${match.productReference}?from=${run.id}`}
               />
             </li>
           ))}

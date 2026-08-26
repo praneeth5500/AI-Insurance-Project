@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.products.catalogue import FACTOR_LABELS
+from app.matching.factors import FACTOR_LABELS
 from app.recommendations import service
 from app.recommendations.comparison import (
     MAX_DIFFERENCES,

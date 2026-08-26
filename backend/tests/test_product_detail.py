@@ -1,4 +1,11 @@
-"""The product detail screen (docs/11_BUILD_PLAN.md Phase 7)."""
+"""The product detail screen.
+
+Phase 9 splits the page in two. The sections state the policy's **facts**;
+the fit block above them says what those facts mean for one reader, and only
+exists inside a recommendation run. Opening an option outside a run shows the
+facts and says why there is no personal assessment — rather than inventing a
+user-independent "fit".
+"""
 
 from __future__ import annotations
 
@@ -15,18 +22,38 @@ from app.products.sections import (
     SECTION_DEFINITIONS,
     build_policy_sections,
 )
-from app.recommendations.ordering import strongest_fits
-from tests.test_questionnaire import make_user
+from app.questionnaires import service as questionnaire_service
+from app.recommendations import service as recommendation_service
+from app.users.models import User
+from tests.test_questionnaire import JUST_ME_ANSWERS, answer_all, make_user
 
 REFERENCE = "sp_meridian_core"
 
 
-async def detail_view(db: AsyncSession, reference: str = REFERENCE) -> ProductDetailView:
-    user = await make_user(db)
-    detail = await service.get_detail(db, user=user, product_reference=reference)
-    return ProductDetailView.of(
-        detail, highlight_factors=strongest_fits(detail.product, ["low_copay"])
+async def run_for(db: AsyncSession, user: User, priorities: list[str] | None = None) -> str:
+    """A completed questionnaire and the run it produced."""
+    session = await questionnaire_service.start_or_resume(db, user=user, domain="HEALTH")
+    answers = dict(JUST_ME_ANSWERS)
+    if priorities is not None:
+        answers["priorities"] = priorities
+    await answer_all(db, user, session.id, answers)
+    await questionnaire_service.complete(db, user=user, session_id=session.id)
+    result = await recommendation_service.create_run(
+        db, user=user, questionnaire_session_id=session.id
     )
+    return result.run.id
+
+
+async def detail_view(
+    db: AsyncSession,
+    reference: str = REFERENCE,
+    priorities: list[str] | None = None,
+    email: str = "reader@example.com",
+) -> ProductDetailView:
+    user = await make_user(db, email)
+    run_id = await run_for(db, user, priorities)
+    detail = await service.get_detail(db, user=user, product_reference=reference, run_id=run_id)
+    return ProductDetailView.of(detail)
 
 
 # --------------------------------------------------------------- sections ---
@@ -48,27 +75,68 @@ def test_sections_match_the_specification() -> None:
 
 def test_every_product_produces_every_section() -> None:
     for product in all_products():
-        sections = build_policy_sections(product)
+        sections = build_policy_sections(product.facts)
         assert [section.label for section in sections] == [
             label for _, label, _ in SECTION_DEFINITIONS
         ]
 
 
-def test_sections_reuse_the_fit_notes_rather_than_restating_them() -> None:
-    """One source of truth: a card and its detail page cannot disagree."""
+def test_sections_state_facts_rather_than_judgements() -> None:
+    """A fact is true for everyone; a fit is true for one person.
+
+    The sections must not borrow the reader-relative wording — "which matters
+    less given a shared room suits you" belongs above them, not in a statement
+    of what the policy does.
+    """
     product = next(p for p in all_products() if p.id == REFERENCE)
-    sections = build_policy_sections(product)
+    sections = build_policy_sections(product.facts)
 
-    values = {fact.value for section in sections for fact in section.facts}
-    notes = {fit.note for fit in product.fits}
+    values = [fact.value for section in sections for fact in section.facts]
+    assert values
+    for value in values:
+        assert " you said" not in value
+        assert "you're aiming for" not in value
 
-    assert values <= notes
+
+def test_a_missing_fact_is_stated_as_missing_not_omitted() -> None:
+    """A blank section reads as "nothing to worry about". It isn't."""
+    lantern = next(p for p in all_products() if p.id == "sp_lantern_starter")
+
+    values = " ".join(
+        fact.value for section in build_policy_sections(lantern.facts) for fact in section.facts
+    )
+
+    assert "No verified exclusions list is recorded" in values
+
+
+def test_no_section_invents_a_figure_the_facts_do_not_hold() -> None:
+    """Every number on the page traces to a recorded fact."""
+    product = next(p for p in all_products() if p.id == REFERENCE)
+    facts = product.facts
+    allowed = {
+        str(facts.copay_percent),
+        str(facts.ped_waiting_months),
+        str(facts.specific_treatment_waiting_months),
+        str(facts.initial_waiting_days),
+        str(facts.room_cap_percent),
+        str(facts.sublimit_count),
+        str(facts.notable_exclusion_count),
+        f"{facts.network_hospital_count:,}",
+        *(str(amount // 100_000) for amount in facts.sum_insured_options_inr),
+    }
+
+    import re
+
+    for section in build_policy_sections(facts):
+        for fact in section.facts:
+            for number in re.findall(r"\d[\d,]*", fact.value):
+                assert number in allowed, f"{fact.key}: {number}"
 
 
 def test_every_fact_offers_an_example() -> None:
     """docs/01_PRODUCT_SPEC.md section 2.8: "Explain with example"."""
     for product in all_products():
-        for section in build_policy_sections(product):
+        for section in build_policy_sections(product.facts):
             for fact in section.facts:
                 assert fact.example, f"{product.id}/{fact.key}"
 
@@ -91,7 +159,7 @@ def test_no_synthetic_fact_claims_to_have_a_source() -> None:
     """A fabricated citation is release-blocking
     (docs/10_TESTING_AND_EVALS.md section 8)."""
     for product in all_products():
-        for section in build_policy_sections(product):
+        for section in build_policy_sections(product.facts):
             for fact in section.facts:
                 assert fact.has_source is False
                 assert fact.source_note
@@ -129,18 +197,53 @@ async def test_the_hero_carries_three_strengths_and_one_trade_off(
 
 
 async def test_highlights_follow_the_reader_s_priorities(db: AsyncSession) -> None:
-    user = await make_user(db)
-    detail = await service.get_detail(db, user=user, product_reference=REFERENCE)
-
-    copay_first = ProductDetailView.of(
-        detail, highlight_factors=strongest_fits(detail.product, ["low_copay"])
-    )
-    sublimits_first = ProductDetailView.of(
-        detail, highlight_factors=strongest_fits(detail.product, ["fewer_sublimits"])
-    )
+    copay_first = await detail_view(db, priorities=["low_copay"], email="a@example.com")
+    sublimits_first = await detail_view(db, priorities=["fewer_sublimits"], email="b@example.com")
 
     assert copay_first.highlights[0].factor == "copay"
     assert sublimits_first.highlights[0].factor == "sublimits"
+
+
+async def test_the_page_shows_the_fit_the_run_recorded(db: AsyncSession) -> None:
+    """A card and the page behind it must never disagree."""
+    user = await make_user(db)
+    run_id = await run_for(db, user)
+
+    run = await recommendation_service.get_run(db, user=user, run_id=run_id)
+    candidate = next(c for c in run.candidates if c.product_reference == REFERENCE)
+
+    detail = await service.get_detail(db, user=user, product_reference=REFERENCE, run_id=run_id)
+    view = ProductDetailView.of(detail)
+
+    assert [fit.fit for fit in view.fits] == [
+        entry["label"] for entry in candidate.reason_summary_json["fits"]
+    ]
+    assert [fit.factor for fit in view.highlights] == candidate.reason_summary_json[
+        "highlightFactors"
+    ]
+
+
+async def test_without_a_run_the_page_states_facts_and_says_so(db: AsyncSession) -> None:
+    """Fit is a judgement about a person. Outside a run there is no person."""
+    user = await make_user(db)
+
+    detail = await service.get_detail(db, user=user, product_reference=REFERENCE)
+    view = ProductDetailView.of(detail)
+
+    assert view.fits == []
+    assert view.highlights == []
+    assert view.fit_context_note is not None
+    assert view.sections
+
+
+async def test_another_users_run_cannot_supply_the_fit(db: AsyncSession) -> None:
+    owner = await make_user(db, "owner@example.com")
+    intruder = await make_user(db, "intruder@example.com")
+    run_id = await run_for(db, owner)
+
+    detail = await service.get_detail(db, user=intruder, product_reference=REFERENCE, run_id=run_id)
+
+    assert detail.fits == []
 
 
 async def test_no_overall_score_appears(db: AsyncSession) -> None:
@@ -152,13 +255,23 @@ async def test_no_overall_score_appears(db: AsyncSession) -> None:
 
 
 async def test_no_premium_appears(db: AsyncSession) -> None:
-    """CLAUDE.md: never invent a premium."""
+    """CLAUDE.md: never invent a premium.
+
+    A cover amount is not a premium — it is the most important fact a policy
+    has, and the questionnaire asks the reader for one in the same units. What
+    must never appear is a *price*: what the policy costs. So the budget fact
+    says there isn't one, and no fact quotes a cost per year or month.
+    """
     view = await detail_view(db)
 
-    # Figures appear only inside examples, never as a product fact.
-    for section in view.sections:
-        for fact in section.facts:
-            assert "₹" not in fact.value
+    facts = {fact.key: fact.value for section in view.sections for fact in section.facts}
+
+    assert "No price is recorded" in facts["budget"]
+    for key, value in facts.items():
+        lowered = value.lower()
+        assert "per year" not in lowered, key
+        assert "per month" not in lowered, key
+        assert "premium is" not in lowered, key
 
 
 # ------------------------------------------------------------------ saving --

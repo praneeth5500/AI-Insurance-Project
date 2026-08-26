@@ -214,6 +214,18 @@ export type RecommendationRun = {
   additionalMatches: MatchView[];
   canShowMore: boolean;
   reordered: string[];
+  /**
+   * The run this one replaced. Changing a priority produces a new run rather
+   * than editing the old one, so results can never be rewritten after the
+   * fact (docs/06_RECOMMENDATION_ENGINE.md section 11).
+   */
+  previousRunId: string | null;
+  /**
+   * How many options were assessed and not offered, with the rules that ruled
+   * them out. A count and reasons — never a list of rejected products.
+   */
+  excludedCount: number;
+  exclusionNotes: string[];
 };
 
 // ---------------------------------------------------------- comparison ----
@@ -282,6 +294,12 @@ export type ProductDetail = {
   highlights: FitView[];
   watchOut: string;
   fits: FitView[];
+  /**
+   * Set when the page was opened outside a set of matches. Fit is a judgement
+   * about a person, so without a run there is nothing to say about it, and
+   * the page says that rather than inventing one.
+   */
+  fitContextNote: string | null;
   sections: ProductSectionView[];
   sourceDocuments: string[];
   sourceDocumentsNote: string;

@@ -15,22 +15,23 @@ export const metadata = {
  * the segment currently carries a synthetic product reference — recorded in
  * `docs/SPEC_ISSUES.md`.
  *
- * `from` and `priorities` are optional context from the results screen, so the
- * page opens on the same three strengths the match card showed and can offer a
- * way back. Without them the page still works — it is a real, linkable URL.
+ * `from` names the result set the reader came from. It is what makes the fit
+ * block possible: the page renders the judgement that run recorded, so a card
+ * and the page behind it can never disagree, and reopening an old result set
+ * shows what it said at the time. Without it the page still works — it is a
+ * real, linkable URL — and shows the policy's facts alone.
  */
 export default async function ProductDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ reference: string }>;
-  searchParams: Promise<{ from?: string; priorities?: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { reference } = await params;
-  const { from, priorities } = await searchParams;
+  const { from } = await searchParams;
 
-  const chosen = (priorities ?? "").split(",").filter(Boolean);
-  const result = await getProductDetail(reference, chosen);
+  const result = await getProductDetail(reference, from ?? null);
 
   if (result.status === "error") {
     return (

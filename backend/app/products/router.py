@@ -13,23 +13,25 @@ from fastapi import APIRouter
 from app.auth.dependencies import CurrentUser, DbSession
 from app.products import service
 from app.products.schemas import ProductDetailView, SaveResponse
-from app.recommendations.ordering import strongest_fits
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 
 @router.get("/{reference}", response_model=ProductDetailView, summary="One option in full")
 async def get_product(
-    reference: str, user: CurrentUser, db: DbSession, priorities: str = ""
+    reference: str, user: CurrentUser, db: DbSession, run: str = ""
 ) -> ProductDetailView:
-    """`priorities` lets the hero highlight what *this* reader said mattered.
+    """`run` names the result set the reader came from.
 
-    Passed by the results screen so the detail page opens on the same three
-    strengths the match card showed, rather than a different three.
+    Fit is a judgement about a person, and it only exists inside a run. Given
+    one, the page shows exactly what that run recorded — the same three
+    strengths the match card headlined, in the same order. Without one it
+    shows the policy's facts and says so.
     """
-    detail = await service.get_detail(db, user=user, product_reference=reference)
-    chosen = [item for item in priorities.split(",") if item]
-    return ProductDetailView.of(detail, highlight_factors=strongest_fits(detail.product, chosen))
+    detail = await service.get_detail(
+        db, user=user, product_reference=reference, run_id=run or None
+    )
+    return ProductDetailView.of(detail)
 
 
 @router.put("/{reference}/saved", response_model=SaveResponse, summary="Save an option")

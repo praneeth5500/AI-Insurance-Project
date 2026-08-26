@@ -1,27 +1,41 @@
 """Producing a match set.
 
-The pipeline is a deliberately thin stand-in for the one in
 docs/04_BACKEND_ARCHITECTURE.md section 4:
 
-    completed answers -> priorities -> synthetic catalogue
-      -> prototype ordering -> persisted run -> presentation-safe result
+    completed answers -> priorities -> product provider
+      -> deterministic matching -> persisted run -> presentation-safe result
 
-Hard eligibility filtering, fit evaluators and versioned weighting are Phase 9.
-Nothing here computes a score that reaches the screen, and no LLM participates.
+The matching itself lives in `app.matching`; this module's job is the
+boundary. Three rules shape it:
+
+* **A run is a record, not a working document.** Changing priorities produces
+  a *new* run pointing back at the old one. Nothing here updates a stored
+  result — CLAUDE.md rule 10, and the models refuse it at the mapper level if
+  something tries.
+* **Products come from a provider.** The synthetic catalogue and imported
+  verified data reach the engine through one interface, so switching to real
+  data is configuration rather than a rewrite.
+* **The internal relevance value stays here.** It is persisted for audit and
+  used to order; it is never placed on a response schema.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import log_fields
-from app.products.catalogue import CATALOGUE_VERSION, SyntheticProduct, all_products, get_product
+from app.db.types import new_id
+from app.matching.eligibility import EXCLUSION_REASON_LABELS
+from app.matching.engine import MatchResult, MatchSet, run_match
+from app.matching.profile import UserProfile, build_profile
+from app.matching.weights import EXPLANATION_VERSION, HEALTH_BETA_001
+from app.products.catalogue import CATALOGUE_VERSION, get_product
 from app.products.provenance import SYNTHETIC
+from app.products.provider import ProviderProduct, SyntheticCatalogueProvider
 from app.questionnaires import service as questionnaire_service
 from app.questionnaires.models import STATUS_COMPLETED
 from app.recommendations.comparison import (
@@ -38,12 +52,15 @@ from app.recommendations.errors import (
     TooManyComparisonsError,
 )
 from app.recommendations.models import (
+    ELIGIBILITY_ELIGIBLE,
+    ELIGIBILITY_EXCLUDED,
     PRESENTATION_BETA_MATCH_SET,
     STATUS_READY,
+    FitComponent,
     RecommendationCandidate,
     RecommendationRun,
 )
-from app.recommendations.ordering import ORDERING_VERSION, order_products, strongest_fits
+from app.recommendations.pricing_lookup import annual_prices_inr
 from app.recommendations.profile import build_decision_profile
 from app.users.models import User
 
@@ -61,51 +78,178 @@ class RunResult:
     decision_profile: list[str]
     priorities: list[str]
 
+    @property
+    def exclusion_notes(self) -> list[str]:
+        """Plain-language reasons some options were not offered."""
+        return [
+            EXCLUSION_REASON_LABELS[reason]
+            for reason in self.run.exclusion_reasons_json
+            if reason in EXCLUSION_REASON_LABELS
+        ]
 
-def _priorities_from(answers: dict[str, Any]) -> list[str]:
-    chosen = answers.get("priorities")
-    return [item for item in chosen if isinstance(item, str)] if isinstance(chosen, list) else []
 
+def _candidate_payload(result: MatchResult) -> dict[str, object]:
+    """The presentation-ready summary stored on the candidate.
 
-def _candidate_payload(product: SyntheticProduct, priorities: list[str]) -> dict[str, Any]:
+    Everything a card or detail page needs, frozen at the moment of the run,
+    so a historical result renders exactly as it did then even if the
+    catalogue has moved on since.
+    """
     return {
-        "insurerName": product.insurer_name,
-        "productName": product.product_name,
-        "sourceType": product.source_type,
-        "highlightFactors": strongest_fits(product, priorities),
-        "watchOut": product.watch_out,
+        "insurerName": result.product.insurer_name,
+        "productName": result.product.product_name,
+        "sourceType": result.product.source_type,
+        "versionLabel": result.product.version_label,
+        "highlightFactors": list(result.highlights),
+        "watchOut": _watch_out(result.product),
         "fits": [
-            {"factor": fit.factor, "label": fit.label, "note": fit.note} for fit in product.fits
+            {
+                "factor": scored.result.factor_key,
+                "label": scored.result.label,
+                "note": scored.result.note,
+            }
+            for scored in result.fits
         ],
     }
 
 
-async def _build_candidates(
-    db: AsyncSession, run: RecommendationRun, priorities: list[str]
-) -> list[RecommendationCandidate]:
-    """Replace the run's candidates with a freshly ordered set."""
-    await db.execute(
-        delete(RecommendationCandidate).where(
-            RecommendationCandidate.recommendation_run_id == run.id
-        )
-    )
+def _watch_out(product: ProviderProduct) -> str:
+    """The one thing to be aware of.
 
-    ordered = order_products(all_products(), priorities)[:MAX_MATCH_COUNT]
-    candidates = [
-        RecommendationCandidate(
+    Authored per product for the synthetic catalogue. Verified products have
+    none yet — and an empty string is the honest answer rather than a
+    generated warning about a policy we have not read.
+    """
+    synthetic = get_product(product.reference)
+    return synthetic.watch_out if synthetic else ""
+
+
+async def _persist(
+    db: AsyncSession, run: RecommendationRun, match_set: MatchSet
+) -> list[RecommendationCandidate]:
+    """Write the assessed products and their evidence.
+
+    Excluded products are stored too, with no presentation order. They never
+    reach a screen; they are what lets the run explain what it left out.
+
+    Candidates are flushed before their fit components: there is no ORM
+    relationship between the two tables, so nothing else would guarantee the
+    rows the foreign key points at exist first.
+    """
+    candidates: list[RecommendationCandidate] = []
+    components: list[tuple[RecommendationCandidate, MatchResult]] = []
+
+    for index, result in enumerate(match_set.matched[:MAX_MATCH_COUNT]):
+        candidate = RecommendationCandidate(
+            # Assigned here, not left to the column default: the fit components
+            # below reference it and defaults only run at flush time.
+            id=new_id("rc"),
             recommendation_run_id=run.id,
-            product_reference=product.id,
-            # Hard eligibility is Phase 9; every synthetic product is offered
-            # and labelled as not yet assessed rather than as "eligible".
-            eligibility_status="NOT_ASSESSED",
+            product_reference=result.product.reference,
+            product_version_id=(
+                result.product.reference if result.product.source_type != SYNTHETIC else None
+            ),
+            eligibility_status=ELIGIBILITY_ELIGIBLE,
+            exclusion_reasons_json=[],
+            internal_relevance_value=result.relevance,
+            internal_order=index,
             presentation_order=index,
-            reason_summary_json=_candidate_payload(product, priorities),
+            reason_summary_json=_candidate_payload(result),
         )
-        for index, product in enumerate(ordered)
-    ]
-    db.add_all(candidates)
+        candidates.append(candidate)
+        db.add(candidate)
+        components.append((candidate, result))
+
+    for result in match_set.excluded:
+        excluded = RecommendationCandidate(
+            recommendation_run_id=run.id,
+            product_reference=result.product.reference,
+            product_version_id=(
+                result.product.reference if result.product.source_type != SYNTHETIC else None
+            ),
+            eligibility_status=ELIGIBILITY_EXCLUDED,
+            exclusion_reasons_json=list(result.eligibility.reasons),
+            internal_relevance_value=result.relevance,
+            internal_order=None,
+            presentation_order=None,
+            reason_summary_json=_candidate_payload(result),
+        )
+        db.add(excluded)
+
     await db.flush()
+    for candidate, result in components:
+        _persist_fit_components(db, candidate, result)
+
     return candidates
+
+
+def _persist_fit_components(
+    db: AsyncSession, candidate: RecommendationCandidate, result: MatchResult
+) -> None:
+    for scored in result.fits:
+        db.add(
+            FitComponent(
+                candidate_id=candidate.id,
+                factor_key=scored.result.factor_key,
+                normalized_score=scored.result.normalized_score,
+                label=scored.result.label,
+                user_priority_level=scored.priority_level,
+                # Hard requirements remove the product outright, so no fit
+                # dimension is ever one.
+                hard_requirement=False,
+                evidence_json=[item.as_json() for item in scored.result.evidence],
+            )
+        )
+
+
+async def _load_products(db: AsyncSession) -> list[ProviderProduct]:
+    """The catalogue to match against.
+
+    Synthetic today. Swapping in `VerifiedCatalogueProvider` is the only
+    change needed once verified data has been imported — which is why the
+    engine never touches the catalogue directly.
+    """
+    provider = SyntheticCatalogueProvider()
+    return await provider.list_products(domain="HEALTH")
+
+
+async def _create(
+    db: AsyncSession,
+    *,
+    user: User,
+    session_id: str,
+    questionnaire_version: str,
+    domain: str,
+    profile: UserProfile,
+    previous_run_id: str | None,
+) -> tuple[RecommendationRun, list[RecommendationCandidate]]:
+    products = await _load_products(db)
+    prices = await annual_prices_inr(db, [product.reference for product in products])
+    match_set = run_match(products, profile, config=HEALTH_BETA_001, prices_inr=prices)
+
+    run = RecommendationRun(
+        user_id=user.id,
+        questionnaire_session_id=session_id,
+        previous_run_id=previous_run_id,
+        domain=domain,
+        questionnaire_version=questionnaire_version,
+        scoring_version=match_set.scoring_version,
+        explanation_version=EXPLANATION_VERSION,
+        catalogue_version=CATALOGUE_VERSION,
+        source_type=SYNTHETIC,
+        presentation_mode=PRESENTATION_BETA_MATCH_SET,
+        status=STATUS_READY,
+        priorities_json=list(profile.priorities),
+        excluded_count=len(match_set.excluded),
+        exclusion_reasons_json=list(match_set.exclusion_reasons),
+    )
+    db.add(run)
+    await db.flush()
+
+    candidates = await _persist(db, run, match_set)
+    await db.flush()
+    await db.commit()
+    return run, candidates
 
 
 async def create_run(db: AsyncSession, *, user: User, questionnaire_session_id: str) -> RunResult:
@@ -116,24 +260,16 @@ async def create_run(db: AsyncSession, *, user: User, questionnaire_session_id: 
     if state.session.status != STATUS_COMPLETED:
         raise QuestionnaireNotCompleteError
 
-    priorities = _priorities_from(state.answers)
-
-    run = RecommendationRun(
-        user_id=user.id,
-        questionnaire_session_id=state.session.id,
-        domain=state.session.domain,
+    profile = build_profile(state.answers)
+    run, candidates = await _create(
+        db,
+        user=user,
+        session_id=state.session.id,
         questionnaire_version=state.session.questionnaire_version,
-        scoring_version=ORDERING_VERSION,
-        catalogue_version=CATALOGUE_VERSION,
-        source_type=SYNTHETIC,
-        presentation_mode=PRESENTATION_BETA_MATCH_SET,
-        status=STATUS_READY,
+        domain=state.session.domain,
+        profile=profile,
+        previous_run_id=None,
     )
-    db.add(run)
-    await db.flush()
-
-    candidates = await _build_candidates(db, run, priorities)
-    await db.commit()
 
     logger.info(
         "recommendation_run_created",
@@ -148,8 +284,20 @@ async def create_run(db: AsyncSession, *, user: User, questionnaire_session_id: 
         run=run,
         candidates=candidates,
         decision_profile=build_decision_profile(state.answers),
-        priorities=priorities,
+        priorities=list(profile.priorities),
     )
+
+
+async def _load_candidates(
+    db: AsyncSession, run_id: str, *, presented_only: bool = True
+) -> list[RecommendationCandidate]:
+    query = select(RecommendationCandidate).where(
+        RecommendationCandidate.recommendation_run_id == run_id
+    )
+    if presented_only:
+        query = query.where(RecommendationCandidate.presentation_order.is_not(None))
+    query = query.order_by(RecommendationCandidate.presentation_order)
+    return list((await db.execute(query)).scalars().all())
 
 
 async def get_run(db: AsyncSession, *, user: User, run_id: str) -> RunResult:
@@ -166,42 +314,46 @@ async def get_run(db: AsyncSession, *, user: User, run_id: str) -> RunResult:
     state = await questionnaire_service.load_state(
         db, user=user, session_id=run.questionnaire_session_id
     )
-    candidates = list(
-        (
-            await db.execute(
-                select(RecommendationCandidate)
-                .where(RecommendationCandidate.recommendation_run_id == run.id)
-                .order_by(RecommendationCandidate.presentation_order)
-            )
-        )
-        .scalars()
-        .all()
-    )
 
     return RunResult(
         run=run,
-        candidates=candidates,
+        candidates=await _load_candidates(db, run.id),
         decision_profile=build_decision_profile(state.answers),
-        priorities=_priorities_from(state.answers),
+        # The priorities this run was produced with, not whatever the
+        # questionnaire says now. A run explains itself.
+        priorities=list(run.priorities_json),
     )
 
 
 async def update_priorities(
     db: AsyncSession, *, user: User, run_id: str, priorities: list[str]
 ) -> tuple[RunResult, list[str]]:
-    """Reorder a run against changed priorities.
+    """Re-match against changed priorities, as a new run.
 
     docs/06_RECOMMENDATION_ENGINE.md section 10: update the structured
-    priority, re-run deterministic matching, persist, let the UI reorder. The
-    previous order is returned alongside so the UI can say *what* changed —
-    docs/02_UX_UI_SPEC.md section 9 requires a changed priority to visibly
-    explain why the results moved.
+    priority, re-run deterministic matching, persist, let the UI reorder. What
+    is persisted is a *new* run — section 11 freezes a completed one, and
+    CLAUDE.md rule 10 forbids rewriting a result after the fact. The previous
+    order comes back alongside so the UI can say what changed
+    (docs/02_UX_UI_SPEC.md section 9).
     """
     before = await get_run(db, user=user, run_id=run_id)
     previous_order = [candidate.product_reference for candidate in before.candidates]
 
-    candidates = await _build_candidates(db, before.run, priorities)
-    await db.commit()
+    state = await questionnaire_service.load_state(
+        db, user=user, session_id=before.run.questionnaire_session_id
+    )
+    profile = build_profile({**state.answers, "priorities": priorities})
+
+    run, candidates = await _create(
+        db,
+        user=user,
+        session_id=before.run.questionnaire_session_id,
+        questionnaire_version=before.run.questionnaire_version,
+        domain=before.run.domain,
+        profile=profile,
+        previous_run_id=before.run.id,
+    )
 
     logger.info(
         "recommendation_priorities_updated",
@@ -209,23 +361,19 @@ async def update_priorities(
             event="recommendation_priorities_updated",
             user_id=user.id,
             resource_type="recommendation_run",
-            resource_id=run_id,
+            resource_id=run.id,
         ),
     )
 
     return (
         RunResult(
-            run=before.run,
+            run=run,
             candidates=candidates,
             decision_profile=before.decision_profile,
-            priorities=priorities,
+            priorities=list(priorities),
         ),
         previous_order,
     )
-
-
-def product_for(candidate: RecommendationCandidate) -> SyntheticProduct | None:
-    return get_product(candidate.product_reference)
 
 
 #: docs/01_PRODUCT_SPEC.md section 2.7 and docs/02_UX_UI_SPEC.md section 10.
@@ -296,3 +444,48 @@ async def compare(
         priority_view=priority_dimensions(dimensions),
         all_dimensions=dimensions,
     )
+
+
+async def candidate_in_run(
+    db: AsyncSession, *, user: User, run_id: str, product_reference: str
+) -> RecommendationCandidate | None:
+    """One assessed option from a run, for the detail screen.
+
+    The detail page shows the fit this run recorded rather than recomputing
+    it, so a card and the page behind it can never disagree — and a run opened
+    later shows what it said at the time.
+    """
+    run = (
+        await db.execute(
+            select(RecommendationRun).where(
+                RecommendationRun.id == run_id, RecommendationRun.user_id == user.id
+            )
+        )
+    ).scalar_one_or_none()
+    if run is None:
+        return None
+
+    return (
+        await db.execute(
+            select(RecommendationCandidate).where(
+                RecommendationCandidate.recommendation_run_id == run_id,
+                RecommendationCandidate.product_reference == product_reference,
+                RecommendationCandidate.presentation_order.is_not(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+
+__all__ = [
+    "MAX_COMPARISON",
+    "MAX_MATCH_COUNT",
+    "MIN_COMPARISON",
+    "PRIMARY_MATCH_COUNT",
+    "ComparisonResult",
+    "RunResult",
+    "candidate_in_run",
+    "compare",
+    "create_run",
+    "get_run",
+    "update_priorities",
+]

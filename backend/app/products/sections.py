@@ -4,9 +4,15 @@
 technical item should support **Explain with example** and **View source
 wording**.
 
-Sections are derived from the fit data the catalogue already holds rather than
-authored a second time. That keeps one source of truth: a product cannot say
-one thing on its match card and another on its detail page.
+Sections state the policy's **facts** — what the co-pay is, how long the wait
+runs, whether room charges are capped. That is different from the "Why this
+matches you" block above them, which says what those facts mean *for this
+reader*. Keeping them apart matters: a fact is true for everyone, a fit is
+true for one person, and blurring the two is how a prototype starts sounding
+more certain than it is.
+
+Both come from the same recorded facts, so a card and the page behind it
+cannot disagree.
 
 Two rules shape the content:
 
@@ -23,7 +29,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from app.products.catalogue import FACTOR_LABELS, SyntheticProduct
+from app.matching.factors import FACTOR_LABELS
+from app.products.facts import HealthFacts
 
 #: Section keys and labels, verbatim from docs/01_PRODUCT_SPEC.md section 2.8.
 #: "Why this matches you" and "What to watch out for" are rendered above these
@@ -111,27 +118,136 @@ SYNTHETIC_SOURCE_NOTE = (
 )
 
 
-def build_policy_sections(product: SyntheticProduct) -> list[PolicySectionView]:
-    """The policy sections for one product, derived from its fit data."""
+def fact_statements(facts: HealthFacts) -> dict[str, str]:
+    """One plain statement per dimension, straight from the recorded facts.
+
+    Where a fact was never recorded the statement says so. That is the whole
+    point of the "no invented figures" rule: a blank is more useful than a
+    plausible number.
+    """
+    return {
+        "coverage": _coverage_statement(facts),
+        "copay": _copay_statement(facts),
+        "waiting_periods": _waiting_statement(facts),
+        "hospital_flexibility": _room_statement(facts),
+        "network": _network_statement(facts),
+        "sublimits": _sublimit_statement(facts),
+        "exclusions": _exclusion_statement(facts),
+        # No price exists for any product yet, and CLAUDE.md forbids inventing
+        # one. The detail page says so rather than leaving a gap.
+        "budget": (
+            "No price is recorded for this option. Premiums come from the insurer, never from us."
+        ),
+    }
+
+
+def _lakh(amount: int) -> str:
+    value = amount / 100_000
+    return f"₹{int(value)} lakh" if value.is_integer() else f"₹{value:.1f} lakh"
+
+
+def _coverage_statement(facts: HealthFacts) -> str:
+    options = ", ".join(_lakh(amount) for amount in sorted(facts.sum_insured_options_inr))
+    restoration = {
+        True: " Cover is restored after a claim.",
+        False: " Cover is not restored after a claim.",
+        None: "",
+    }[facts.restoration]
+    return f"Cover available at {options}.{restoration}"
+
+
+def _copay_statement(facts: HealthFacts) -> str:
+    if facts.copay_percent is None:
+        return "No verified co-pay figure is recorded."
+    if facts.copay_percent == 0:
+        return "No co-pay: the policy pays the full covered amount on a standard claim."
+    if facts.copay_applies_above_age is not None:
+        return (
+            f"A {facts.copay_percent}% co-pay applies to each claim from age "
+            f"{facts.copay_applies_above_age}."
+        )
+    return f"A {facts.copay_percent}% co-pay applies to each claim."
+
+
+def _waiting_statement(facts: HealthFacts) -> str:
+    parts: list[str] = []
+    if facts.ped_waiting_months is not None:
+        parts.append(f"Existing conditions are covered after {facts.ped_waiting_months} months.")
+    if facts.specific_treatment_waiting_months is not None:
+        parts.append(
+            f"Certain named treatments wait {facts.specific_treatment_waiting_months} months."
+        )
+    if facts.initial_waiting_days is not None:
+        parts.append(f"There is an initial {facts.initial_waiting_days}-day wait, accidents aside.")
+    return " ".join(parts) if parts else "No verified waiting periods are recorded."
+
+
+def _room_statement(facts: HealthFacts) -> str:
+    if facts.room_rule is None:
+        return "No verified room rules are recorded."
+    if facts.room_rule == "ANY_ROOM":
+        return "Any room category is covered, with no separate cap on room charges."
+    if facts.room_rule == "SINGLE_PRIVATE":
+        return "Room charges are covered up to a single private room."
+    if facts.room_rule == "CAPPED_PERCENT" and facts.room_cap_percent is not None:
+        return (
+            f"Room charges are capped at {facts.room_cap_percent}% of the cover amount per day. "
+            "Going above the cap can reduce what is paid on the rest of the bill."
+        )
+    return (
+        "Room charges are capped. Going above the cap can reduce what is paid on the rest "
+        "of the bill."
+    )
+
+
+def _network_statement(facts: HealthFacts) -> str:
+    if facts.cashless_scope is None:
+        return "No verified network detail is recorded."
+    if facts.cashless_scope == "ANY_HOSPITAL":
+        return "Cashless treatment is not restricted to a network of hospitals."
+    if facts.network_hospital_count is None:
+        return "Cashless treatment is limited to a network; its size is not recorded."
+    return (
+        f"Cashless treatment works at around {facts.network_hospital_count:,} network hospitals "
+        "nationally. We have not checked the network against your area."
+    )
+
+
+def _sublimit_statement(facts: HealthFacts) -> str:
+    if facts.sublimit_count is None:
+        return "No verified list of treatment caps is recorded."
+    if facts.sublimit_count == 0:
+        return "No individual treatment carries its own separate cap."
+    named = ", ".join(facts.sublimit_treatments)
+    detail = f" Capped treatments include {named}." if named else ""
+    return f"{facts.sublimit_count} treatments carry their own separate cap.{detail}"
+
+
+def _exclusion_statement(facts: HealthFacts) -> str:
+    if facts.notable_exclusion_count is None:
+        return "No verified exclusions list is recorded for this option."
+    return f"{facts.notable_exclusion_count} notable exclusions are recorded."
+
+
+def build_policy_sections(facts: HealthFacts) -> list[PolicySectionView]:
+    """The policy sections for one product, stated from its recorded facts."""
+    statements = fact_statements(facts)
     sections: list[PolicySectionView] = []
 
-    for key, label, factors in SECTION_DEFINITIONS:
-        facts: list[PolicyFactView] = []
-        for factor in factors:
-            fit = product.fit(factor)
-            if fit is None:
-                continue
-            facts.append(
-                PolicyFactView(
-                    key=factor,
-                    label=FACTOR_LABELS.get(factor, factor),
-                    value=fit.note,
-                    example=FACTOR_EXAMPLES.get(factor),
-                    has_source=False,
-                    source_note=SYNTHETIC_SOURCE_NOTE,
-                )
+    for key, label, section_factors in SECTION_DEFINITIONS:
+        entries = [
+            PolicyFactView(
+                key=factor,
+                label=FACTOR_LABELS.get(factor, factor),
+                value=statements[factor],
+                example=FACTOR_EXAMPLES.get(factor),
+                has_source=False,
+                source_note=SYNTHETIC_SOURCE_NOTE,
             )
-        if facts:
-            sections.append(PolicySectionView(key=key, label=label, facts=tuple(facts)))
+            for factor in section_factors
+            if factor in statements
+        ]
+        if entries:
+            sections.append(PolicySectionView(key=key, label=label, facts=tuple(entries)))
 
     return sections

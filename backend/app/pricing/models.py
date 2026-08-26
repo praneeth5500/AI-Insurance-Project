@@ -24,6 +24,12 @@ STATUS_QUOTED = "QUOTED"
 STATUS_FINAL = "FINAL"
 PRICE_STATUSES = (STATUS_INDICATIVE, STATUS_QUOTED, STATUS_FINAL)
 
+#: Billing periods. Only an annual figure can be compared against the
+#: questionnaire's "roughly what would you like to spend a year" answer, so the
+#: matching engine reads this rather than assuming what a price covers.
+BILLING_PERIOD_YEAR = "YEAR"
+BILLING_PERIOD_MONTH = "MONTH"
+
 
 class ProductPrice(Base):
     __tablename__ = "product_prices"
