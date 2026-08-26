@@ -72,7 +72,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 8 — Real data domain layer | ✅ Complete |
 | 9 — Matching engine | ✅ Complete |
 | 10 — Policy upload | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
-| 11–17 | ⬜ Not started |
+| 11 — Document extraction | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
+| 12–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -205,6 +206,13 @@ make test
 - **An uploaded policy is never publicly reachable.** No public URL, no signed
   link — documents stream through an authenticated route that re-checks
   ownership on every request, and deletion is auditable.
+- **Every extracted policy fact carries its citation** — the page and the
+  exact sentence it came from. A fact without a clause behind it is not stored
+  as a fact.
+- **Conflicting clauses are reported as conflicting**, never silently resolved,
+  and nothing automated relies on a fact in that state.
+- **A document we cannot read fails visibly** and says why. It never produces
+  an empty policy that could be mistaken for one covering nothing.
 - **A file's type is read from its bytes**, never from the filename or the
   `Content-Type` the browser claimed.
 - **Every fit judgement stores its evidence** — the product facts, the reader's

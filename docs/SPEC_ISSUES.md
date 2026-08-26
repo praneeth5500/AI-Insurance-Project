@@ -21,7 +21,7 @@ adding `frozen_at` beside it. A run is produced synchronously and stored as
 `READY`; `frozen_at` records when the result set stopped being able to change,
 which is what an asynchronous implementation would need later. Please confirm.
 
-## 2. Extraction confidence is both a number and an enum — Phase 11
+## 2. Extraction confidence is both a number and an enum — Phase 11 (resolved)
 
 `docs/07_POLICY_DECODER_AI.md` section 4 shows `"confidence": 0.96` (numeric);
 section 5 defines the states `HIGH | MEDIUM | LOW | NOT_FOUND | CONFLICTING`.
@@ -485,3 +485,31 @@ copy if implementation supports it." Resolved by making it true before using
 it — private storage that refuses to run outside local, no public URL and no
 signed link, ownership re-checked on every read, and a delete path that reports
 honestly when it cannot confirm removal.
+
+## Resolved in Phase 11
+
+### Confidence as a number and as a state
+
+Issue 2: `docs/07_POLICY_DECODER_AI.md` section 4 shows `"confidence": 0.96`
+while section 5 defines `HIGH | MEDIUM | LOW | NOT_FOUND | CONFLICTING`.
+Resolved by storing both on every fact. The number is what the extractor
+produced; the state is derived from it together with which clause the value was
+found in, and the state is the only thing the UI reasons about. They cannot
+drift apart because the state is never set independently.
+
+### A pipeline that needs a model, before a model exists
+
+`docs/07_POLICY_DECODER_AI.md` describes schema-constrained model output;
+open item 2 leaves the provider undecided and `docs/11_BUILD_PLAN.md` says AI
+comes after the structured output is correct. Resolved with a deterministic
+extractor behind the `FactExtractor` interface a model will implement, under
+the same contract: a value arrives with the clause that supports it, or it is
+NOT_FOUND. The extraction run records `ai_provider` as null, so a run can
+always answer whether a model participated.
+
+### OCR that is not available yet
+
+Open item 3. Resolved by failing loudly: `UnavailableOcrProvider` raises and
+the reader is told scans are not supported yet. Returning empty pages would
+produce a policy whose every section is blank — which a reader would
+reasonably take to mean their policy covers nothing.

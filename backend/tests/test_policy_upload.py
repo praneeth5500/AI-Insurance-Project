@@ -61,14 +61,27 @@ def pdf_bytes(*, pages: int = 1, text: str = REAL_PAGE_TEXT) -> bytes:
 
     Built by hand rather than with a library so the fixture is exactly what it
     claims to be: these bytes are what a parser will actually see.
+
+    Each line of `text` becomes its own text-showing operator at its own
+    vertical position, because that is how a real PDF is laid out and it is
+    what makes an extractor emit line breaks. A fixture that put a whole page
+    on one line would quietly stop clause segmentation from ever being
+    exercised.
     """
     objects: list[bytes] = []
     kids = " ".join(f"{4 + index * 2} 0 R" for index in range(pages))
     objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
     objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {pages} >>".encode())
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+
+    lines = text.split("\n") or [""]
     for index in range(pages):
-        stream = f"BT /F1 12 Tf 72 720 Td ({text} page {index + 1}) Tj ET".encode()
+        drawn = "\n".join(
+            f"BT /F1 11 Tf 72 {740 - position * 16} Td ({_escape_pdf(line)}) Tj ET"
+            for position, line in enumerate(lines)
+            if line.strip()
+        )
+        stream = drawn.encode("latin-1", "replace")
         objects.append(
             f"<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 3 0 R >> >> "
             f"/MediaBox [0 0 612 792] /Contents {5 + index * 2} 0 R >>".encode()
@@ -89,9 +102,14 @@ def pdf_bytes(*, pages: int = 1, text: str = REAL_PAGE_TEXT) -> bytes:
     for offset in offsets[1:]:
         out += f"{offset:010d} 00000 n \n".encode()
     out += (
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF".encode()
-    )
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF"
+    ).encode()
     return bytes(out)
+
+
+def _escape_pdf(text: str) -> str:
+    """Escape the three characters a PDF string literal cannot carry raw."""
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
 def scanned_pdf_bytes() -> bytes:
