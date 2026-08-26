@@ -24,6 +24,7 @@ from app.jobs import models as job_models
 from app.policies import models as policy_models
 from app.pricing import models as pricing_models
 from app.products import models as product_models
+from app.qa import models as qa_models
 from app.questionnaires import models as questionnaire_models
 from app.recommendations import models as recommendation_models
 from app.users import models as user_models
@@ -37,6 +38,7 @@ MODEL_MODULES = (
     policy_models,
     pricing_models,
     product_models,
+    qa_models,
     questionnaire_models,
     recommendation_models,
     user_models,

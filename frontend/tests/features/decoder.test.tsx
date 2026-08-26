@@ -143,6 +143,7 @@ describe("DecoderView", () => {
     render(
       <DecoderView
         decoded={decoded({ unknownCount: 2, conflictingCount: 1, unreadClauseCount: 4 })}
+        conversation={null}
       />,
     );
 
@@ -155,7 +156,7 @@ describe("DecoderView", () => {
   });
 
   it("says this is a reading of the document, not advice", () => {
-    render(<DecoderView decoded={decoded()} />);
+    render(<DecoderView decoded={decoded()} conversation={null} />);
 
     const notice = screen
       .getAllByRole("status")
@@ -165,7 +166,7 @@ describe("DecoderView", () => {
   });
 
   it("states whether an AI model was involved", () => {
-    render(<DecoderView decoded={decoded()} />);
+    render(<DecoderView decoded={decoded()} conversation={null} />);
 
     expect(screen.getByText("no AI model")).toBeDefined();
     expect(screen.getByText(/no AI model was involved/)).toBeDefined();
@@ -173,7 +174,7 @@ describe("DecoderView", () => {
 
   it("promises no claim outcome anywhere", () => {
     // docs/07_POLICY_DECODER_AI.md section 9.
-    render(<DecoderView decoded={decoded({ unknownCount: 1 })} />);
+    render(<DecoderView decoded={decoded({ unknownCount: 1 })} conversation={null} />);
 
     const text = (document.body.textContent ?? "").toLowerCase();
     for (const forbidden of ["will be approved", "guaranteed", "you will be paid"]) {
@@ -182,7 +183,7 @@ describe("DecoderView", () => {
   });
 
   it("renders the sections the report actually has", () => {
-    render(<DecoderView decoded={decoded()} />);
+    render(<DecoderView decoded={decoded()} conversation={null} />);
 
     expect(screen.getByRole("heading", { name: "Before Cover Starts" })).toBeDefined();
   });

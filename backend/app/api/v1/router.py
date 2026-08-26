@@ -12,6 +12,7 @@ from app.decoder.router import router as decoder_router
 from app.home.router import router as home_router
 from app.policies.router import router as policy_router
 from app.products.router import router as product_router
+from app.qa.router import router as qa_router
 from app.questionnaires.router import router as questionnaire_router
 from app.recommendations.router import comparison_router
 from app.recommendations.router import router as recommendation_router
@@ -25,3 +26,4 @@ api_v1_router.include_router(comparison_router)
 api_v1_router.include_router(product_router)
 api_v1_router.include_router(policy_router)
 api_v1_router.include_router(decoder_router)
+api_v1_router.include_router(qa_router)

@@ -2,6 +2,7 @@ import type {
   ApiResult,
   AppError,
   DecodedPolicy,
+  QaConversation,
   UploadedPolicy,
   UploadedPolicySummary,
 } from "@/lib/api/types";
@@ -73,5 +74,12 @@ export async function listPolicies(): Promise<ApiResult<{ policies: UploadedPoli
 export async function getDecodedPolicy(policyId: string): Promise<ApiResult<DecodedPolicy>> {
   return parse<DecodedPolicy>(
     await fetchAsUser(`/api/v1/policies/${encodeURIComponent(policyId)}/decoded`),
+  );
+}
+
+/** Load the question history for a policy, server-side. */
+export async function getConversation(policyId: string): Promise<ApiResult<QaConversation>> {
+  return parse<QaConversation>(
+    await fetchAsUser(`/api/v1/policies/${encodeURIComponent(policyId)}/questions`),
   );
 }

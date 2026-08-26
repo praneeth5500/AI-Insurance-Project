@@ -415,3 +415,40 @@ export type DecodedPolicy = {
   /** Null while extraction is deterministic. */
   aiProvider: string | null;
 };
+
+// --------------------------------------------------------------- policy Q&A ----
+
+/** How an answer was produced, so the UI never presents them alike. */
+export type AnswerState = "GROUNDED" | "INSUFFICIENT_EVIDENCE" | "TOO_BROAD" | "UNAVAILABLE";
+
+export type QaCitation = {
+  ordinal: number;
+  page: number;
+  clauseTitle: string | null;
+  /** The wording itself, so a citation reads without another request. */
+  clauseText: string;
+};
+
+export type QaMessage = {
+  id: string;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  /** Null on the reader's own messages. */
+  answerState: AnswerState | null;
+  citations: QaCitation[];
+  createdAt: string;
+};
+
+/** `GET /api/v1/policies/{policyId}/questions` */
+export type QaConversation = {
+  policyId: string;
+  messages: QaMessage[];
+  /** Whether plain-language explanation is available at all. */
+  explanationAvailable: boolean;
+};
+
+/** `POST /api/v1/policies/{policyId}/questions` */
+export type QaAnswer = {
+  message: QaMessage;
+  quotedNotExplained: boolean;
+};
