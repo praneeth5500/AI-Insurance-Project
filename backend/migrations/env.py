@@ -26,16 +26,7 @@ if config.config_file_name is not None:
 
 # Model modules are imported for their side effect of registering tables on
 # Base.metadata, which is what autogenerate compares against.
-from app.audit import models as audit_models  # noqa: E402,F401
-from app.auth import models as auth_models  # noqa: E402,F401
-from app.extraction import models as extraction_models  # noqa: E402,F401
-from app.jobs import models as job_models  # noqa: E402,F401
-from app.policies import models as policy_models  # noqa: E402,F401
-from app.pricing import models as pricing_models  # noqa: E402,F401
-from app.products import models as product_models  # noqa: E402,F401
-from app.questionnaires import models as questionnaire_models  # noqa: E402,F401
-from app.recommendations import models as recommendation_models  # noqa: E402,F401
-from app.users import models as user_models  # noqa: E402,F401
+from app.db import registry as _model_registry  # noqa: E402,F401
 
 target_metadata = Base.metadata
 

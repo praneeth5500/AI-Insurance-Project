@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.auth.router import router as auth_router
+from app.decoder.router import router as decoder_router
 from app.home.router import router as home_router
 from app.policies.router import router as policy_router
 from app.products.router import router as product_router
@@ -23,3 +24,4 @@ api_v1_router.include_router(recommendation_router)
 api_v1_router.include_router(comparison_router)
 api_v1_router.include_router(product_router)
 api_v1_router.include_router(policy_router)
+api_v1_router.include_router(decoder_router)

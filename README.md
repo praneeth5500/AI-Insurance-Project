@@ -73,7 +73,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 9 — Matching engine | ✅ Complete |
 | 10 — Policy upload | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 11 — Document extraction | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
-| 12–17 | ⬜ Not started |
+| 12 — Decoder UI | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
+| 13–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -209,6 +210,8 @@ make test
 - **Every extracted policy fact carries its citation** — the page and the
   exact sentence it came from. A fact without a clause behind it is not stored
   as a fact.
+- **The decoder report opens with what it could not determine**, and an
+  unknown is a visible card rather than a missing one.
 - **Conflicting clauses are reported as conflicting**, never silently resolved,
   and nothing automated relies on a fact in that state.
 - **A document we cannot read fails visibly** and says why. It never produces

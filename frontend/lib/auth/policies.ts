@@ -1,4 +1,10 @@
-import type { ApiResult, AppError, UploadedPolicy, UploadedPolicySummary } from "@/lib/api/types";
+import type {
+  ApiResult,
+  AppError,
+  DecodedPolicy,
+  UploadedPolicy,
+  UploadedPolicySummary,
+} from "@/lib/api/types";
 import { fetchAsUser } from "@/lib/auth/session";
 
 /**
@@ -61,4 +67,11 @@ export async function getPolicy(policyId: string): Promise<ApiResult<UploadedPol
 
 export async function listPolicies(): Promise<ApiResult<{ policies: UploadedPolicySummary[] }>> {
   return parse<{ policies: UploadedPolicySummary[] }>(await fetchAsUser("/api/v1/policies"));
+}
+
+/** Load the decoder report server-side, so the first paint is the report. */
+export async function getDecodedPolicy(policyId: string): Promise<ApiResult<DecodedPolicy>> {
+  return parse<DecodedPolicy>(
+    await fetchAsUser(`/api/v1/policies/${encodeURIComponent(policyId)}/decoded`),
+  );
 }

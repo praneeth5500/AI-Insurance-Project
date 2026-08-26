@@ -1,10 +1,11 @@
 "use client";
 
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { apiBaseUrl } from "@/lib/api/client";
 import type { UploadedPolicy } from "@/lib/api/types";
@@ -114,6 +115,15 @@ export function ProcessingStatus({ policy }: { policy: UploadedPolicy }) {
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
+        {/* The link appears only once the report actually exists. */}
+        {policy.isReady ? (
+          <Link
+            href={`/app/policies/${policy.id}/decoded`}
+            className={buttonClassName({ variant: "primary" })}
+          >
+            Read what your policy says
+          </Link>
+        ) : null}
         <Button variant="secondary" onClick={remove}>
           Delete this policy
         </Button>

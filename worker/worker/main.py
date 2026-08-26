@@ -32,6 +32,7 @@ import uuid
 
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, log_fields
+from app.db import registry as _model_registry  # noqa: F401 - completes the mapper registry
 from app.db.session import dispose_engine, get_session, init_engine
 from app.extraction.pipeline import is_permanent, process_document
 from app.extraction.text import ExtractionFailed

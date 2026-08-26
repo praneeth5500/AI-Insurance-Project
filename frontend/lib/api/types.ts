@@ -364,3 +364,54 @@ export type UploadedPolicySummary = {
   isFailed: boolean;
   createdAt: string;
 };
+
+// ------------------------------------------------------------- decoder ----
+
+/** docs/07_POLICY_DECODER_AI.md section 5. */
+export type ConfidenceState = "HIGH" | "MEDIUM" | "LOW" | "NOT_FOUND" | "CONFLICTING";
+
+export type Citation = {
+  page: number;
+  clauseTitle: string | null;
+  /** The sentence the value came from. */
+  quote: string;
+  /** The whole clause, for "view source wording". Null when not stored. */
+  clauseText: string | null;
+};
+
+/** One fact card (docs/07_POLICY_DECODER_AI.md section 6). */
+export type FactCard = {
+  factKey: string;
+  title: string;
+  /** Kept rather than replaced: explain the term without hiding it. */
+  technicalTerm: string;
+  /** Null when the value is unknown or disputed. */
+  statement: string | null;
+  /** A hypothetical about policies in general, never this policy. */
+  example: string;
+  conditions: string;
+  confidenceState: ConfidenceState;
+  reliable: boolean;
+  citation: Citation | null;
+  /** Every reading, when they disagree. */
+  alternatives: Citation[];
+};
+
+export type DecoderSection = {
+  key: string;
+  label: string;
+  facts: FactCard[];
+};
+
+/** `GET /api/v1/policies/{policyId}/decoded` */
+export type DecodedPolicy = {
+  policyId: string;
+  displayName: string;
+  sections: DecoderSection[];
+  unknownCount: number;
+  conflictingCount: number;
+  unreadClauseCount: number;
+  schemaVersion: string | null;
+  /** Null while extraction is deterministic. */
+  aiProvider: string | null;
+};

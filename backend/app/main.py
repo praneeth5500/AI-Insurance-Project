@@ -14,6 +14,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, log_fields
 from app.core.middleware import RequestContextMiddleware
+from app.db import registry as _model_registry  # noqa: F401 - completes the mapper registry
 from app.db.session import dispose_engine, init_engine
 from app.health.router import router as health_router
 
