@@ -103,12 +103,20 @@ export function DecoderView({
           </Card>
         </section>
 
-        <Link
-          href={`/app/policies/${decoded.policyId}`}
-          className="inline-flex min-h-touch items-center self-start text-support text-accent underline"
-        >
-          Back to this policy
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href={`/app/policies/${decoded.policyId}/claims`}
+            className="inline-flex min-h-touch items-center self-start text-support text-accent underline"
+          >
+            Get ready to claim on this policy
+          </Link>
+          <Link
+            href={`/app/policies/${decoded.policyId}`}
+            className="inline-flex min-h-touch items-center self-start text-support text-accent underline"
+          >
+            Back to this policy
+          </Link>
+        </div>
       </div>
 
       {conversation ? (

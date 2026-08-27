@@ -1,6 +1,7 @@
 import type {
   ApiResult,
   AppError,
+  ClaimsChecklist,
   DecodedPolicy,
   QaConversation,
   UploadedPolicy,
@@ -81,5 +82,12 @@ export async function getDecodedPolicy(policyId: string): Promise<ApiResult<Deco
 export async function getConversation(policyId: string): Promise<ApiResult<QaConversation>> {
   return parse<QaConversation>(
     await fetchAsUser(`/api/v1/policies/${encodeURIComponent(policyId)}/questions`),
+  );
+}
+
+/** Load the claims checklist server-side. */
+export async function getClaimsChecklist(policyId: string): Promise<ApiResult<ClaimsChecklist>> {
+  return parse<ClaimsChecklist>(
+    await fetchAsUser(`/api/v1/policies/${encodeURIComponent(policyId)}/claims-checklist`),
   );
 }

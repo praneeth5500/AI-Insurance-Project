@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from app.audit import models as audit_models
 from app.auth import models as auth_models
+from app.claims import models as claims_models
 from app.extraction import models as extraction_models
 from app.jobs import models as job_models
 from app.policies import models as policy_models
@@ -33,6 +34,7 @@ from app.users import models as user_models
 MODEL_MODULES = (
     audit_models,
     auth_models,
+    claims_models,
     extraction_models,
     job_models,
     policy_models,

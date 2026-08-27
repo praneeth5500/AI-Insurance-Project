@@ -452,3 +452,48 @@ export type QaAnswer = {
   message: QaMessage;
   quotedNotExplained: boolean;
 };
+
+// ------------------------------------------------------ claims readiness ----
+
+/**
+ * Where a checklist item came from
+ * (docs/07_POLICY_DECODER_AI.md section 10).
+ *
+ * The API groups by this rather than returning a flat list, because a flat
+ * list with a field on each item invites one careless render that shows a
+ * general suggestion as a policy requirement.
+ */
+export type ChecklistOrigin = "POLICY_SPECIFIC" | "GENERAL_PREPARATION" | "CONFIRM_WITH_INSURER";
+
+export type ChecklistSource = {
+  page: number;
+  clauseTitle: string | null;
+  clauseText: string;
+};
+
+export type ChecklistItem = {
+  id: string;
+  label: string;
+  description: string;
+  completed: boolean;
+  userNote: string | null;
+  /** Present only on policy-specific items, and always present on them. */
+  source: ChecklistSource | null;
+};
+
+export type ChecklistGroup = {
+  origin: ChecklistOrigin;
+  label: string;
+  explanation: string;
+  items: ChecklistItem[];
+};
+
+/** `GET /api/v1/policies/{policyId}/claims-checklist` */
+export type ClaimsChecklist = {
+  policyId: string;
+  displayName: string;
+  groups: ChecklistGroup[];
+  completedCount: number;
+  totalCount: number;
+  disclaimer: string;
+};
