@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Card } from "@/components/ui/card";
 import { AskPanel } from "@/features/policy/ask-panel";
+import { Helpfulness } from "@/features/feedback/helpfulness";
 import { FactCard } from "@/features/policy/fact-card";
+import { track } from "@/lib/analytics/track";
 import type { DecodedPolicy, QaConversation } from "@/lib/api/types";
 
 /**
@@ -76,7 +80,12 @@ export function DecoderView({
         ) : null}
 
         {decoded.sections.map((section) => (
-          <section key={section.key} className="flex flex-col gap-4">
+          <section
+            key={section.key}
+            className="flex flex-col gap-4"
+            // Which parts of the report people actually read.
+            onPointerEnter={() => track("decoder_section_opened", { section: section.key })}
+          >
             <h2 className="text-h2 font-semibold text-primary">{section.label}</h2>
             <div className="flex flex-col gap-4">
               {section.facts.map((fact) => (
@@ -103,9 +112,16 @@ export function DecoderView({
           </Card>
         </section>
 
+        <Helpfulness
+          contextType="DECODER"
+          contextId={decoded.policyId}
+          question="Did this help you understand your policy?"
+        />
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Link
             href={`/app/policies/${decoded.policyId}/claims`}
+            onClick={() => track("claims_checklist_opened", {})}
             className="inline-flex min-h-touch items-center self-start text-support text-accent underline"
           >
             Get ready to claim on this policy

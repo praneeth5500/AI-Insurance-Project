@@ -1,5 +1,6 @@
 import { AlertOctagon } from "lucide-react";
 import type { ReactNode } from "react";
+import { TrackView } from "@/lib/analytics/track-view";
 import { cn } from "@/lib/ui/cn";
 
 /**
@@ -12,6 +13,11 @@ import { cn } from "@/lib/ui/cn";
  *
  * This component is presentational: callers map an API error onto these props
  * rather than the component importing the API layer.
+ *
+ * It does emit one thing — the error telemetry Phase 15 asks for. Doing it
+ * here rather than at each call site means an error screen cannot be added
+ * without being counted, which is the only way the number stays true. The
+ * code is recorded; the description, which can carry specifics, is not.
  */
 export type ErrorStateProps = {
   title: string;
@@ -42,6 +48,7 @@ export function ErrorState({
         className,
       )}
     >
+      <TrackView event="error_shown" properties={{ error_code: code ?? "UNKNOWN" }} />
       <span className="flex size-11 items-center justify-center rounded-full bg-critical-soft">
         <AlertOctagon className="size-5 text-critical" aria-hidden="true" />
       </span>

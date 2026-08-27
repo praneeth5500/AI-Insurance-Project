@@ -4,6 +4,7 @@ import { ChevronDown, FileText } from "lucide-react";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ConfidenceBadge } from "@/features/policy/confidence-badge";
+import { track } from "@/lib/analytics/track";
 import type { FactCard as FactCardData } from "@/lib/api/types";
 
 /**
@@ -97,7 +98,12 @@ export function FactCard({ fact }: { fact: FactCardData }) {
           <>
             <button
               type="button"
-              onClick={() => setShowSource((open) => !open)}
+              onClick={() => {
+                // Checking the source wording is the trust behaviour this
+                // product is built around, so it is worth counting.
+                if (!showSource) track("citation_opened", { context: "decoder" });
+                setShowSource((open) => !open);
+              }}
               aria-expanded={showSource}
               className="inline-flex min-h-touch items-center gap-1 self-start text-support text-accent underline"
             >

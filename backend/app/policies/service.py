@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics import service as analytics
+from app.analytics.events import POLICY_UPLOAD_COMPLETED
 from app.core.config import Settings
 from app.core.logging import log_fields
 from app.db.types import utcnow
@@ -137,6 +139,13 @@ async def create_policy_from_upload(
         policy_id=policy.id,
     )
     policy.status = STATUS_READING
+    await analytics.record_safely(
+        db,
+        name=POLICY_UPLOAD_COMPLETED,
+        user=user,
+        # Never the filename, and never anything that identifies the document.
+        properties={"page_count": validated.page_count},
+    )
     await db.commit()
 
     logger.info(

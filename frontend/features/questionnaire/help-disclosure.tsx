@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { track } from "@/lib/analytics/track";
 import { cn } from "@/lib/ui/cn";
 
 /**
@@ -11,14 +12,25 @@ import { cn } from "@/lib/ui/cn";
  * the expanded/collapsed state is announced and keyboard operable. The answer
  * is static copy from the question definition — there is no AI here.
  */
-export function HelpDisclosure({ helpText }: { helpText: string }) {
+export function HelpDisclosure({
+  helpText,
+  questionId,
+}: {
+  helpText: string;
+  /** Which question needed explaining. Never the answer to it. */
+  questionId?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-2">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          // Which questions people need help understanding.
+          if (!open && questionId) track("question_help_opened", { question_id: questionId });
+          setOpen((value) => !value);
+        }}
         aria-expanded={open}
         className={cn(
           "flex min-h-touch items-center gap-1.5 self-start rounded-control",

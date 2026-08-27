@@ -17,10 +17,12 @@ several.
 
 from __future__ import annotations
 
+from app.analytics import models as analytics_models
 from app.audit import models as audit_models
 from app.auth import models as auth_models
 from app.claims import models as claims_models
 from app.extraction import models as extraction_models
+from app.feedback import models as feedback_models
 from app.jobs import models as job_models
 from app.policies import models as policy_models
 from app.pricing import models as pricing_models
@@ -32,10 +34,12 @@ from app.users import models as user_models
 
 #: Referenced so linters keep the imports, and so the list is visible as data.
 MODEL_MODULES = (
+    analytics_models,
     audit_models,
     auth_models,
     claims_models,
     extraction_models,
+    feedback_models,
     job_models,
     policy_models,
     pricing_models,

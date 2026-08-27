@@ -5,6 +5,7 @@ import { useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { track } from "@/lib/analytics/track";
 import { apiBaseUrl } from "@/lib/api/client";
 import type { QaAnswer, QaCitation, QaConversation, QaMessage } from "@/lib/api/types";
 
@@ -42,7 +43,15 @@ function CitationList({ citations }: { citations: QaCitation[] }) {
         Based on {citations.length === 1 ? "this part" : "these parts"} of your policy
       </p>
       {citations.map((citation) => (
-        <details key={citation.ordinal} className="flex flex-col gap-1">
+        <details
+          key={citation.ordinal}
+          className="flex flex-col gap-1"
+          onToggle={(event) => {
+            if ((event.currentTarget as HTMLDetailsElement).open) {
+              track("citation_opened", { context: "qa" });
+            }
+          }}
+        >
           <summary className="inline-flex min-h-touch cursor-pointer items-center gap-1 text-support text-accent">
             <FileText className="size-4" aria-hidden="true" />
             Page {citation.page}

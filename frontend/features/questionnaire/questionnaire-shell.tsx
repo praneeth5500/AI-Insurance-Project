@@ -7,6 +7,7 @@ import { InlineAlert } from "@/components/feedback/inline-alert";
 import { PageContainer } from "@/components/layout/page-container";
 import { BackContinueBar } from "@/features/questionnaire/back-continue-bar";
 import { HelpDisclosure } from "@/features/questionnaire/help-disclosure";
+import { track } from "@/lib/analytics/track";
 import { QuestionHeader } from "@/features/questionnaire/question-header";
 import { QuestionInput } from "@/features/questionnaire/question-input";
 import { saveAnswer } from "@/features/questionnaire/questionnaire-client";
@@ -95,6 +96,10 @@ export function QuestionnaireShell({
     setSession(result.data);
     setDraft(undefined);
 
+    // Progress through the questionnaire, for drop-off analysis. The
+    // question and its stage — never the answer.
+    track("question_answered", { question_id: activeQuestion.id, stage: stageKey });
+
     // Re-read the stage from the *updated* session: answering may have
     // revealed or hidden questions in this very stage.
     const updated = questionsInStage(result.data, stageKey);
@@ -137,7 +142,9 @@ export function QuestionnaireShell({
             {...(error ? { error } : {})}
           />
 
-          {activeQuestion.helpText ? <HelpDisclosure helpText={activeQuestion.helpText} /> : null}
+          {activeQuestion.helpText ? (
+            <HelpDisclosure helpText={activeQuestion.helpText} questionId={activeQuestion.id} />
+          ) : null}
         </div>
 
         <BackContinueBar

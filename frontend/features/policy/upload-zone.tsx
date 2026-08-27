@@ -2,9 +2,10 @@
 
 import { FileText, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics/track";
 import { apiBaseUrl } from "@/lib/api/client";
 import type { UploadedPolicy } from "@/lib/api/types";
 
@@ -32,6 +33,13 @@ function readableSize(bytes: number): string {
 
 export function UploadZone() {
   const router = useRouter();
+
+  // Reaching the upload screen is the top of this funnel; the completion
+  // event is recorded server-side where the file is actually accepted.
+  useEffect(() => {
+    track("policy_upload_started", {});
+  }, []);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);

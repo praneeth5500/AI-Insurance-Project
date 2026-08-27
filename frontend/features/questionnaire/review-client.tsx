@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
+import { track } from "@/lib/analytics/track";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,6 +28,12 @@ export function ReviewClient({
   initialSession: QuestionnaireSession;
   matchingAvailable: boolean;
 }) {
+  // Reached the review screen. Distinct from submitting it — see
+  // docs/SPEC_ISSUES.md issue 3.
+  useEffect(() => {
+    track("questionnaire_reviewed", {});
+  }, []);
+
   const router = useRouter();
   const [session, setSession] = useState(initialSession);
   const [submitting, setSubmitting] = useState(false);

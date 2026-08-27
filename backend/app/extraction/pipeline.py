@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics import service as analytics
+from app.analytics.events import POLICY_PROCESSING_COMPLETED
 from app.core.logging import log_fields
 from app.db.types import utcnow
 from app.extraction.clauses import segment
@@ -140,6 +142,11 @@ async def process_document(
         run.completed_at = utcnow()
         policy.status = STATUS_FAILED
         policy.failure_reason = reason
+        # A failure is a funnel step too: how often extraction cannot read a
+        # document is the number that decides whether OCR is worth buying.
+        await analytics.record_safely(
+            db, name=POLICY_PROCESSING_COMPLETED, properties={"outcome": reason}
+        )
         await db.commit()
         logger.info(
             "policy_processing_failed",
@@ -245,6 +252,11 @@ async def process_document(
     run.completed_at = utcnow()
     policy.status = STATUS_READY
     policy.ready_at = utcnow()
+    await analytics.record_safely(
+        db,
+        name=POLICY_PROCESSING_COMPLETED,
+        properties={"facts_found": found, "facts_not_found": not_found, "outcome": "READY"},
+    )
     await db.commit()
 
     logger.info(

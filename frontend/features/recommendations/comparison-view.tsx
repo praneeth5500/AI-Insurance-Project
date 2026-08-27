@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InlineAlert } from "@/components/feedback/inline-alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ComparisonRow } from "@/features/recommendations/comparison-row";
+import { Helpfulness } from "@/features/feedback/helpfulness";
 import { WatchOut } from "@/features/recommendations/watch-out";
+import { track } from "@/lib/analytics/track";
 import type { ComparisonView as Comparison } from "@/lib/api/types";
 
 /**
@@ -21,6 +23,11 @@ import type { ComparisonView as Comparison } from "@/lib/api/types";
  * anywhere — the reader decides, which is the entire premise of the product.
  */
 export function ComparisonView({ comparison }: { comparison: Comparison }) {
+  // How many options were compared, never which. Fired once per mount.
+  useEffect(() => {
+    track("comparison_viewed", { option_count: comparison.options.length });
+  }, [comparison.options.length]);
+
   const [showAll, setShowAll] = useState(false);
 
   return (
@@ -121,6 +128,12 @@ export function ComparisonView({ comparison }: { comparison: Comparison }) {
           </Button>
         )}
       </section>
+
+      <Helpfulness
+        contextType="COMPARISON"
+        contextId={comparison.runId}
+        question="Did this comparison make the differences clear?"
+      />
 
       <Link
         href={`/app/recommendations/${comparison.runId}`}

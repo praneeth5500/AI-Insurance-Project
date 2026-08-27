@@ -513,3 +513,30 @@ Open item 3. Resolved by failing loudly: `UnavailableOcrProvider` raises and
 the reader is told scans are not supported yet. Returning empty pages would
 produce a policy whose every section is blank — which a reader would
 reasonably take to mean their policy covers nothing.
+
+## Resolved in Phase 15
+
+### Two questionnaire events, not one
+
+Issue 3: `docs/03_FRONTEND_ARCHITECTURE.md` lists `questionnaire_reviewed`;
+`docs/12_BETA_CHECKLIST.md` requires `questionnaire_completed`. Resolved by
+treating them as the two different things they are — reaching the review
+screen, and submitting it. Both are emitted, so the checklist can be ticked
+off and the drop-off between the two is visible.
+
+### Analytics per feature vs analytics at Phase 15
+
+Issue 12: `CLAUDE.md`'s definition of done wants an analytics event where
+specified, while `docs/11_BUILD_PLAN.md` sequences all analytics at Phase 15.
+Resolved by Phase 15 going back and wiring every earlier screen, which is what
+the ordering implied. Every phase before this one was shipped without its
+events; they exist now.
+
+### An analytics table the data model does not define
+
+`docs/05_DATA_MODEL.md` has `audit_events` and `feedback` but nothing for
+product analytics, because analytics usually goes to a third-party service and
+no vendor is chosen. Resolved by adding `analytics_events` behind a sink
+interface: the beta's data stays in the beta's database, and the vendor
+decision stays open. Please confirm you are happy with that, and decide a
+retention period — the table grows forever as written.

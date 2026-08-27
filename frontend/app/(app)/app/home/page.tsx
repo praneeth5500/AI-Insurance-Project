@@ -4,6 +4,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { DemoDataNotice } from "@/features/home/demo-data-notice";
 import { NewUserHome } from "@/features/home/new-user-home";
 import { ReturningHome } from "@/features/home/returning-home";
+import { TrackView } from "@/lib/analytics/track-view";
 import { getHomeSummary } from "@/lib/auth/home";
 
 export const metadata = {
@@ -38,6 +39,7 @@ export default async function HomePage() {
 
   return (
     <PageContainer>
+      <TrackView event="home_viewed" properties={{ is_returning: !summary.isNewUser }} />
       <div className="flex flex-col gap-8">
         {summary.dataMode === "DEMO" ? <DemoDataNotice /> : null}
 

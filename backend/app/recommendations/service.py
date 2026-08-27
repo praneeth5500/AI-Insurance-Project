@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics import service as analytics
+from app.analytics.events import PRIORITY_CHANGED, RECOMMENDATION_GENERATED
 from app.core.logging import log_fields
 from app.db.types import new_id
 from app.matching.eligibility import EXCLUSION_REASON_LABELS
@@ -248,6 +250,17 @@ async def _create(
 
     candidates = await _persist(db, run, match_set)
     await db.flush()
+    await analytics.record_safely(
+        db,
+        name=RECOMMENDATION_GENERATED,
+        user=user,
+        properties={
+            "domain": domain,
+            "match_count": len(candidates),
+            "excluded_count": len(match_set.excluded),
+            "scoring_version": match_set.scoring_version,
+        },
+    )
     await db.commit()
     return run, candidates
 
@@ -354,6 +367,16 @@ async def update_priorities(
         profile=profile,
         previous_run_id=before.run.id,
     )
+
+    await analytics.record_safely(
+        db,
+        name=PRIORITY_CHANGED,
+        user=user,
+        # How many, never which: a priority is something the reader told us
+        # about themselves.
+        properties={"domain": before.run.domain, "priority_count": len(priorities)},
+    )
+    await db.commit()
 
     logger.info(
         "recommendation_priorities_updated",

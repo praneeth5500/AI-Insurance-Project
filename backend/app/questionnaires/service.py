@@ -17,6 +17,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics import service as analytics
+from app.analytics.events import QUESTIONNAIRE_COMPLETED, RECOMMENDATION_STARTED
 from app.core.logging import log_fields
 from app.db.types import utcnow
 from app.questionnaires import repository as repo
@@ -103,6 +105,11 @@ async def start_or_resume(db: AsyncSession, *, user: User, domain: str) -> Quest
     )
     db.add(session)
     await db.commit()
+    await analytics.record_safely(
+        db, name=RECOMMENDATION_STARTED, user=user, properties={"domain": domain}
+    )
+    await db.commit()
+
     logger.info(
         "questionnaire_session_started",
         extra=log_fields(
@@ -201,6 +208,14 @@ async def complete(db: AsyncSession, *, user: User, session_id: str) -> SessionS
     state.session.completed_at = utcnow()
 
     await _persist_priorities(db, state)
+    # Recorded in the same transaction as the completion it describes, so a
+    # rolled-back submission cannot leave a funnel step behind.
+    await analytics.record_safely(
+        db,
+        name=QUESTIONNAIRE_COMPLETED,
+        user=user,
+        properties={"domain": state.session.domain},
+    )
     await db.commit()
 
     logger.info(

@@ -29,6 +29,7 @@ export function MatchCard({
   compareDisabled,
   moved,
   detailHref,
+  onOpenDetail = () => {},
 }: {
   match: MatchView;
   position: number;
@@ -38,6 +39,8 @@ export function MatchCard({
   /** Highlighted after a priority change, so a reordering is visible. */
   moved: boolean;
   detailHref: string;
+  /** Fired when the reader opens the option in full. */
+  onOpenDetail?: () => void;
 }) {
   const [showWhy, setShowWhy] = useState(false);
   const whyId = `why-${match.id}`;
@@ -121,6 +124,7 @@ export function MatchCard({
 
           <Link
             href={detailHref}
+            onClick={onOpenDetail}
             className="flex min-h-touch items-center text-support font-medium text-accent underline"
           >
             View details

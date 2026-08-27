@@ -38,6 +38,8 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics import service as analytics
+from app.analytics.events import POLICY_QUESTION_ASKED
 from app.core.logging import log_fields
 from app.extraction.models import PolicyClause
 from app.policies.errors import PolicyNotFoundError
@@ -243,7 +245,7 @@ async def ask(
             metadata={"retrievalVersion": RETRIEVAL_VERSION},
             quoted_not_explained=False,
         )
-        await db.commit()
+        await _record_asked(db, user, result.answer_state)
         _log(user, policy.id)
         return result
 
@@ -257,7 +259,7 @@ async def ask(
             metadata={"retrievalVersion": RETRIEVAL_VERSION},
             quoted_not_explained=False,
         )
-        await db.commit()
+        await _record_asked(db, user, result.answer_state)
         _log(user, policy.id)
         return result
 
@@ -297,7 +299,7 @@ async def ask(
             quoted_not_explained=False,
         )
 
-    await db.commit()
+    await _record_asked(db, user, result.answer_state)
     _log(user, policy.id)
     return result
 
@@ -374,6 +376,14 @@ async def _record(
         citations=citations,
         quoted_not_explained=quoted_not_explained,
     )
+
+
+async def _record_asked(db: AsyncSession, user: User, answer_state: str) -> None:
+    """Count the question and what kind of answer it got — never its text."""
+    await analytics.record_safely(
+        db, name=POLICY_QUESTION_ASKED, user=user, properties={"answer_state": answer_state}
+    )
+    await db.commit()
 
 
 def _log(user: User, policy_id: str) -> None:

@@ -76,7 +76,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 12 — Decoder UI | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 13 — Policy Q&A | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 14 — Claims readiness | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
-| 15–17 | ⬜ Not started |
+| 15 — Analytics & feedback | ✅ Complete |
+| 16–17 | ⬜ Not started |
 
 ## Repository layout
 
@@ -212,6 +213,9 @@ make test
 - **Every extracted policy fact carries its citation** — the page and the
   exact sentence it came from. A fact without a clause behind it is not stored
   as a fact.
+- **No answer value can reach analytics.** Events carry only declared
+  property keys; anything else is dropped centrally, and free text lives only
+  in the feedback table.
 - **A claims checklist never blends what your policy requires with what
   insurers generally want**, and never predicts whether a claim will be paid.
 - **Q&A answers come only from the uploaded document**, always with the

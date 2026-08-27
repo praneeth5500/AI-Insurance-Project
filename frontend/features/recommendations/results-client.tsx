@@ -8,6 +8,8 @@ import { CompareTray, MAX_COMPARE } from "@/features/recommendations/compare-tra
 import { DecisionProfileSummary } from "@/features/recommendations/decision-profile-summary";
 import { MatchCard } from "@/features/recommendations/match-card";
 import { PriorityEditor, PRIORITY_OPTIONS } from "@/features/recommendations/priority-editor";
+import { Helpfulness } from "@/features/feedback/helpfulness";
+import { track } from "@/lib/analytics/track";
 import { requestJson } from "@/lib/api/client";
 import type { MatchView, RecommendationRun } from "@/lib/api/types";
 
@@ -43,13 +45,17 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
   );
 
   function toggleCompare(productReference: string) {
-    setSelected((current) =>
-      current.includes(productReference)
+    setSelected((current) => {
+      const next = current.includes(productReference)
         ? current.filter((item) => item !== productReference)
         : current.length >= MAX_COMPARE
           ? current
-          : [...current, productReference],
-    );
+          : [...current, productReference];
+      // How many are selected, never which: an option reference is not
+      // sensitive, but the count is what the funnel actually needs.
+      track("compare_added", { selected_count: next.length });
+      return next;
+    });
   }
 
   async function applyPriorities(next: string[]) {
@@ -151,6 +157,7 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
                 compareDisabled={selected.length >= MAX_COMPARE}
                 moved={run.reordered.includes(match.productReference)}
                 detailHref={`/app/products/${match.productReference}?from=${run.id}`}
+                onOpenDetail={() => track("match_opened", { position: index + 1 })}
               />
             </li>
           ))}
@@ -168,6 +175,12 @@ export function ResultsClient({ initialRun }: { initialRun: RecommendationRun })
           {error}
         </InlineAlert>
       ) : null}
+
+      <Helpfulness
+        contextType="RECOMMENDATION"
+        contextId={run.id}
+        question="Did these options help you understand your choices?"
+      />
 
       <PriorityEditor priorities={run.priorities} onApply={applyPriorities} saving={saving} />
 
