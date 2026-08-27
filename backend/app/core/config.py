@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 AppEnv = Literal["local", "preview", "staging", "production-beta"]
 
 LOCAL_DATABASE_URL = "postgresql+asyncpg://insurance:insurance@localhost:5432/insurance_local"
+LOCAL_FRONTEND_ORIGIN = "http://localhost:3000"
 
 
 class Settings(BaseSettings):
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # noqa: S104 — containers bind all interfaces
     api_port: int = 8000
 
-    cors_allowed_origins: str = "http://localhost:3000"
+    cors_allowed_origins: str = LOCAL_FRONTEND_ORIGIN
 
     #: Requests slower than this are logged at WARNING so latency stays visible.
     slow_request_threshold_ms: int = Field(default=1000, ge=1)
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------- auth --
     # Where the magic link should send the user. The link is built by the API
     # but opened in the frontend.
-    frontend_base_url: str = "http://localhost:3000"
+    frontend_base_url: str = LOCAL_FRONTEND_ORIGIN
 
     #: Comma-separated emails seeded into the beta allowlist by
     #: `make seed-allowlist`. Empty by default: nobody has access until an
@@ -99,6 +100,12 @@ class Settings(BaseSettings):
     #: 20 MB comfortably holds a scanned policy booklet.
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
 
+    #: Most pages a document may have. A PDF is a container: a small file can
+    #: declare thousands of pages, and the worker walks every one. Refusing at
+    #: upload is cheaper than discovering it in extraction, and a real policy
+    #: booklet is far below this.
+    max_document_pages: int = Field(default=400, ge=1)
+
     #: How many documents one policy may carry. A policy wording is sometimes
     #: split across a few files (wording, schedule, endorsements).
     max_documents_per_policy: int = Field(default=5, ge=1, le=20)
@@ -146,6 +153,34 @@ class Settings(BaseSettings):
                 f"DATABASE_URL must be set explicitly when APP_ENV={self.app_env}; "
                 "the local development default is not usable outside APP_ENV=local."
             )
+        # Credentialed CORS: the browser sends the session cookie to any origin
+        # named here, so a wildcard or a stale localhost entry is an open door
+        # rather than a misconfiguration. Nothing is guessed — a deployed
+        # environment must say what its app origin is.
+        if not self.is_local:
+            origins = self.cors_origins
+            if not origins or origins == [LOCAL_FRONTEND_ORIGIN]:
+                raise RuntimeError(
+                    f"CORS_ALLOWED_ORIGINS must name this environment's app origin when "
+                    f"APP_ENV={self.app_env}; the local development default is not usable."
+                )
+            for origin in origins:
+                if origin == "*":
+                    raise RuntimeError(
+                        "CORS_ALLOWED_ORIGINS cannot be '*': the API sends credentials, "
+                        "so every listed origin can read a signed-in user's data."
+                    )
+                if not origin.startswith("https://"):
+                    raise RuntimeError(
+                        f"CORS origin {origin!r} is not https. A session cookie is "
+                        f"Secure, so a plain-http origin cannot work and must not be listed."
+                    )
+            if self.frontend_base_url == LOCAL_FRONTEND_ORIGIN:
+                raise RuntimeError(
+                    f"FRONTEND_BASE_URL must be set when APP_ENV={self.app_env}; "
+                    "sign-in links would otherwise point at localhost."
+                )
+
         if self.home_demo_data and self.app_env not in ("local", "preview"):
             raise RuntimeError(
                 f"HOME_DEMO_DATA cannot be enabled when APP_ENV={self.app_env}. "

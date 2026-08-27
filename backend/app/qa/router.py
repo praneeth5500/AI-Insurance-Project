@@ -11,7 +11,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.auth.dependencies import CurrentUser, DbSession
-from app.core.errors import AppError
+from app.core.errors import AppError, RateLimitedError
+from app.core.rate_limit import QUESTION_PER_USER, limiter
 from app.policies.dependencies import DecoderEnabled
 from app.qa import service
 from app.qa.llm import build_llm_provider
@@ -51,6 +52,10 @@ async def conversation(policy_id: str, user: CurrentUser, db: DbSession) -> Conv
     summary="Ask about this policy",
 )
 async def ask(policy_id: str, payload: AskRequest, user: CurrentUser, db: DbSession) -> AnswerView:
+    # Each question scans every clause of the policy.
+    if not limiter.check(f"question:{user.id}", QUESTION_PER_USER):
+        raise RateLimitedError
+
     try:
         result = await service.ask(db, user=user, policy_id=policy_id, question=payload.question)
     except service.QuestionTooLongError as exc:

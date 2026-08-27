@@ -98,3 +98,50 @@ def test_exception_traceback_body_is_not_serialised() -> None:
 
 def test_log_fields_wraps_values_under_the_fields_key() -> None:
     assert log_fields(status_code=200) == {"fields": {"status_code": 200}}
+
+
+def test_an_exception_message_is_withheld_outside_local() -> None:
+    """A database or validation error quotes the value that caused it.
+
+    That value is the user's — an email address, an answer, a line of policy
+    wording — so deployed logs get the type and the request id only.
+    """
+    try:
+        raise ValueError("duplicate key value violates unique constraint: beta@example.com")
+    except ValueError:
+        record = logging.LogRecord(
+            name="app",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="unhandled_exception",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+
+    deployed = json.loads(JsonFormatter().format(record))
+    assert deployed["exception"] == "ValueError"
+    assert "exception_message" not in deployed
+    assert "beta@example.com" not in json.dumps(deployed)
+
+    local = json.loads(JsonFormatter(include_exception_message=True).format(record))
+    assert "beta@example.com" in local["exception_message"]
+
+
+def test_a_local_exception_message_is_bounded() -> None:
+    """Even locally, a message is not an unbounded write into the log."""
+    try:
+        raise ValueError("x" * 5000)
+    except ValueError:
+        record = logging.LogRecord(
+            name="app",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="unhandled_exception",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+
+    payload = json.loads(JsonFormatter(include_exception_message=True).format(record))
+    assert len(payload["exception_message"]) == 500

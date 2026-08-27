@@ -39,3 +39,50 @@ def test_create_app_enforces_the_environment_guard_on_injected_settings() -> Non
 
     with pytest.raises(RuntimeError, match="DATABASE_URL must be set explicitly"):
         create_app(Settings(app_env="production-beta", database_url=LOCAL_DATABASE_URL))
+
+
+def _deployed(**overrides: object) -> Settings:
+    base: dict[str, object] = {
+        "app_env": "staging",
+        "database_url": "postgresql+asyncpg://u:p@db.internal:5432/insurance",
+        "cors_allowed_origins": "https://app.example.com",
+        "frontend_base_url": "https://app.example.com",
+    }
+    base.update(overrides)
+    return Settings(**base)  # type: ignore[arg-type]
+
+
+def test_a_deployed_environment_must_name_its_app_origin() -> None:
+    """The API sends credentials, so the origin list is an access list."""
+    with pytest.raises(RuntimeError, match="CORS_ALLOWED_ORIGINS"):
+        _deployed(cors_allowed_origins="http://localhost:3000").validate_for_environment()
+
+    with pytest.raises(RuntimeError, match="CORS_ALLOWED_ORIGINS"):
+        _deployed(cors_allowed_origins="").validate_for_environment()
+
+
+def test_a_wildcard_cors_origin_is_refused() -> None:
+    with pytest.raises(RuntimeError, match="cannot be"):
+        _deployed(cors_allowed_origins="*").validate_for_environment()
+
+
+def test_a_plain_http_cors_origin_is_refused() -> None:
+    """A Secure cookie is never sent to http, so listing one only misleads."""
+    with pytest.raises(RuntimeError, match="not https"):
+        _deployed(
+            cors_allowed_origins="https://app.example.com,http://staging.example.com"
+        ).validate_for_environment()
+
+
+def test_sign_in_links_cannot_still_point_at_localhost() -> None:
+    with pytest.raises(RuntimeError, match="FRONTEND_BASE_URL"):
+        _deployed(frontend_base_url="http://localhost:3000").validate_for_environment()
+
+
+def test_a_correctly_configured_deployment_validates() -> None:
+    _deployed().validate_for_environment()
+
+
+def test_local_development_keeps_its_defaults() -> None:
+    """None of the above may make `make dev` require configuration."""
+    Settings(app_env="local").validate_for_environment()

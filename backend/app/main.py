@@ -14,6 +14,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, log_fields
 from app.core.middleware import RequestContextMiddleware
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.db import registry as _model_registry  # noqa: F401 - completes the mapper registry
 from app.db.session import dispose_engine, init_engine
 from app.health.router import router as health_router
@@ -25,7 +26,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the application. Tests call this directly with overridden settings."""
     settings = settings or get_settings()
     settings.validate_for_environment()
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, is_local=settings.is_local)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -47,6 +48,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if settings.is_local else None,
     )
 
+    # Added before the request-context middleware so it runs outermost and
+    # its headers are present even on an error response.
+    app.add_middleware(SecurityHeadersMiddleware, is_local=settings.is_local)
     app.add_middleware(
         RequestContextMiddleware,
         slow_request_threshold_ms=settings.slow_request_threshold_ms,

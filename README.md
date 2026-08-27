@@ -53,6 +53,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_6_NOTES.md`](docs/PHASE_6_NOTES.md) ·
 [`docs/PHASE_7_NOTES.md`](docs/PHASE_7_NOTES.md) ·
 [`docs/PHASE_8_NOTES.md`](docs/PHASE_8_NOTES.md) ·
+[`docs/PHASE_16_NOTES.md`](docs/PHASE_16_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -77,7 +78,8 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 13 — Policy Q&A | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 14 — Claims readiness | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 15 — Analytics & feedback | ✅ Complete |
-| 16–17 | ⬜ Not started |
+| 16 — Security & beta hardening | ✅ Complete (backups still owed — see notes) |
+| 17 — Friends & family beta | ⬜ Blocked on an email provider |
 
 ## Repository layout
 

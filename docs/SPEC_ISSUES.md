@@ -540,3 +540,40 @@ no vendor is chosen. Resolved by adding `analytics_events` behind a sink
 interface: the beta's data stays in the beta's database, and the vendor
 decision stays open. Please confirm you are happy with that, and decide a
 retention period — the table grows forever as written.
+
+## Raised in Phase 16
+
+### Rate limits are per process, not per deployment
+
+`app/core/rate_limit.py` keeps its sliding window in memory, so two API
+instances mean two budgets and the effective limit doubles. That is honest for
+a beta of a handful of users on one instance, and it is the only option
+without a shared store. **Decision needed** before running more than one
+instance: Redis, or a small table in the database. The limiter sits behind one
+`check()` call, so swapping the store touches nothing else.
+
+### The limit numbers are chosen, not specified
+
+Five limits ship (5 sign-in links per address per 15 minutes, 20 per source,
+30 verifications per source, 20 uploads and 60 questions per user per hour).
+`docs/11_BUILD_PLAN.md` asks for rate limits but names no numbers. These are
+set to be invisible to a real user and painful to a script. **Please confirm**,
+particularly the 5-per-15-minutes on sign-in links: a beta user who deletes the
+first mail and retries a few times will meet it.
+
+### No backups, because there is no database to back up
+
+`docs/09_AWS_DEPLOYMENT.md` section 6 requires automated backups. There is no
+AWS account and no managed PostgreSQL instance, so this part of Phase 16 could
+not be done rather than done badly — see `docs/PHASE_16_NOTES.md` section 7.
+**Blocking for any real beta**, alongside the email provider. A restore must be
+tested once, not just configured.
+
+### Deployed environments now refuse to start when unconfigured
+
+Not a specification conflict — a decision worth knowing about. `CORS_ALLOWED_ORIGINS`
+and `FRONTEND_BASE_URL` must now be set explicitly outside local, and a
+wildcard or plain-http CORS origin is refused outright. The API sends
+credentials, so a listed origin can read a signed-in user's data. This will
+surface as a startup failure the first time a deployment is attempted; that is
+deliberate.

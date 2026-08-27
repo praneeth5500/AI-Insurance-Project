@@ -90,7 +90,11 @@ async def create_policy_from_upload(
 ) -> PolicyWithDocuments:
     """Accept one file and start processing it."""
     try:
-        validated = validate_upload(data, max_bytes=settings.max_upload_bytes)
+        validated = validate_upload(
+            data,
+            max_bytes=settings.max_upload_bytes,
+            max_pages=settings.max_document_pages,
+        )
     except UploadRejected as rejection:
         # The reason travels to the client so the message can be specific;
         # the file itself is never written.
@@ -177,7 +181,11 @@ async def add_document(
         raise TooManyDocumentsError
 
     try:
-        validated = validate_upload(data, max_bytes=settings.max_upload_bytes)
+        validated = validate_upload(
+            data,
+            max_bytes=settings.max_upload_bytes,
+            max_pages=settings.max_document_pages,
+        )
     except UploadRejected as rejection:
         raise UploadRejectedError(rejection.message) from rejection
 

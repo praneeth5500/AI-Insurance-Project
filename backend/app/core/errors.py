@@ -50,6 +50,15 @@ class ServiceUnavailableError(AppError):
     message = "The service is temporarily unavailable. Please try again shortly."
 
 
+class RateLimitedError(AppError):
+    """Too many attempts. Retryable, because waiting genuinely fixes it."""
+
+    code = "RATE_LIMITED"
+    http_status = 429
+    retryable = True
+    message = "That's a lot of attempts in a short time. Please wait a few minutes and try again."
+
+
 class ValidationFailedError(AppError):
     code = "VALIDATION_FAILED"
     http_status = 422  # constant name differs across Starlette versions

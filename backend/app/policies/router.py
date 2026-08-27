@@ -18,6 +18,8 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 from fastapi.responses import Response
 
 from app.auth.dependencies import AppSettings, CurrentUser, DbSession
+from app.core.errors import RateLimitedError
+from app.core.rate_limit import UPLOAD_PER_USER, limiter
 from app.policies import service
 from app.policies.dependencies import DecoderEnabled, Queue, Storage
 from app.policies.models import PolicyDocument
@@ -60,6 +62,11 @@ async def upload_policy(
     is small enough that streaming to a temporary file would add a second
     place a private document can be left behind.
     """
+    # Each upload parses a PDF, so the limit is per user rather than per IP:
+    # a signed-in account is the thing doing the work.
+    if not limiter.check(f"upload:{user.id}", UPLOAD_PER_USER):
+        raise RateLimitedError
+
     data = await file.read()
     result = await service.create_policy_from_upload(
         db,
@@ -100,6 +107,9 @@ async def add_document(
     settings: AppSettings,
     file: UploadFile = File(...),  # noqa: B008 - FastAPI's own idiom
 ) -> PolicyView:
+    if not limiter.check(f"upload:{user.id}", UPLOAD_PER_USER):
+        raise RateLimitedError
+
     result = await service.add_document(
         db,
         user=user,

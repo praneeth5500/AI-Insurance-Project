@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import type { NavItem } from "@/components/layout/nav-items";
@@ -70,6 +71,13 @@ function Swatch({ name, variable, ratio }: { name: string; variable: string; rat
 }
 
 export default function DesignSystemPage() {
+  // Developer reference, not product. It names unbuilt routes and renders
+  // every error and empty state out of context, so it is served only in local
+  // development — anywhere else this route does not exist.
+  if (process.env.NEXT_PUBLIC_APP_ENV !== "local") {
+    notFound();
+  }
+
   return (
     <AppShell
       desktopItems={DESKTOP_ITEMS}

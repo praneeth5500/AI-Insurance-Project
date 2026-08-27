@@ -164,6 +164,8 @@ def test_demo_data_is_refused_outside_local_and_preview(app_env: AppEnv) -> None
     settings = Settings(
         app_env=app_env,
         database_url="postgresql+asyncpg://x:y@host/db",
+        cors_allowed_origins="https://app.example.com",
+        frontend_base_url="https://app.example.com",
         home_demo_data=True,
     )
 
@@ -175,6 +177,8 @@ def test_demo_data_is_allowed_in_preview() -> None:
     settings = Settings(
         app_env="preview",
         database_url="postgresql+asyncpg://x:y@host/db",
+        cors_allowed_origins="https://preview.example.com",
+        frontend_base_url="https://preview.example.com",
         home_demo_data=True,
     )
 

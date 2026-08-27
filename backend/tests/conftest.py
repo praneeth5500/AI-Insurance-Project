@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import (
 from app.audit import models as _audit_models  # noqa: F401
 from app.auth import models as _auth_models  # noqa: F401
 from app.core.config import Settings
+from app.core.rate_limit import limiter
 from app.db.base import Base
 from app.db.session import dispose_engine, get_session, init_engine
 from app.main import create_app
@@ -37,6 +38,19 @@ TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://insurance:insurance@127.0.0.1:5432/insurance_test",
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> Iterator[None]:
+    """The limiter is per-process, so its counters outlive a single test.
+
+    Without this, a suite that signs several users in would exhaust the
+    per-address budget and later tests would fail on a limit that no real user
+    would ever hit.
+    """
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture

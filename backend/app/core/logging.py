@@ -43,7 +43,19 @@ class SafeFieldFilter(logging.Filter):
 
 
 class JsonFormatter(logging.Formatter):
-    """Emit one JSON object per line so CloudWatch can index it."""
+    """Emit one JSON object per line so CloudWatch can index it.
+
+    ``include_exception_message`` is off outside local development. An
+    exception's text is not ours: a database integrity error quotes the value
+    that collided, and a validation error quotes the input. Both are exactly
+    the content docs/09_AWS_DEPLOYMENT.md section 9 forbids in logs, so
+    deployed environments get the exception's type and the request id — enough
+    to find the request — and never its message.
+    """
+
+    def __init__(self, *, include_exception_message: bool = False) -> None:
+        super().__init__()
+        self._include_exception_message = include_exception_message
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -59,14 +71,15 @@ class JsonFormatter(logging.Formatter):
             # Type/message only — never the traceback body, which can quote input.
             exc_type, exc_value, _ = record.exc_info
             payload["exception"] = getattr(exc_type, "__name__", "Exception")
-            payload["exception_message"] = str(exc_value)
+            if self._include_exception_message:
+                payload["exception_message"] = str(exc_value)[:500]
         return json.dumps(payload, default=str)
 
 
-def configure_logging(level: str = "INFO") -> None:
+def configure_logging(level: str = "INFO", *, is_local: bool = False) -> None:
     """Install the JSON formatter and safe-field filter on the root logger."""
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
+    handler.setFormatter(JsonFormatter(include_exception_message=is_local))
     handler.addFilter(SafeFieldFilter())
 
     root = logging.getLogger()

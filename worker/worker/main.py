@@ -168,7 +168,7 @@ def run(settings: Settings | None = None, *, max_jobs: int | None = None) -> int
     """Start the worker. Returns the process exit code."""
     settings = settings or get_settings()
     settings.validate_for_environment()
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, is_local=settings.is_local)
 
     stop = Shutdown()
     with contextlib.suppress(ValueError):

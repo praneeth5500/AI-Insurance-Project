@@ -41,6 +41,7 @@ RejectionReason = Literal[
     "UNSUPPORTED_TYPE",
     "ENCRYPTED_PDF",
     "CORRUPT_PDF",
+    "TOO_MANY_PAGES",
 ]
 
 #: What the reader is told. Each one says what happened *and* what they can do.
@@ -61,6 +62,10 @@ REJECTION_MESSAGES: dict[str, str] = {
     "CORRUPT_PDF": (
         "We couldn't open that PDF. It may not have downloaded fully. Please try "
         "downloading it from your insurer again and re-uploading."
+    ),
+    "TOO_MANY_PAGES": (
+        "That document has more pages than we can read. If you uploaded a whole "
+        "policy pack, try uploading just the policy wording on its own."
     ),
 }
 
@@ -134,8 +139,13 @@ def _inspect_pdf(data: bytes) -> tuple[int | None, bool, dict[str, Any]]:
     return page_count, has_text, {"sampledPages": sample, "hasTextLayer": has_text}
 
 
-def validate_upload(data: bytes, *, max_bytes: int) -> ValidatedUpload:
-    """Accept or reject a file, deciding its type from its contents."""
+def validate_upload(data: bytes, *, max_bytes: int, max_pages: int = 400) -> ValidatedUpload:
+    """Accept or reject a file, deciding its type from its contents.
+
+    `max_pages` matters as much as `max_bytes`: a PDF is a container, and a
+    small file can declare thousands of pages that the worker would then walk.
+    Size alone does not bound the work.
+    """
     if not data:
         raise UploadRejected("EMPTY_FILE")
     if len(data) > max_bytes:
@@ -151,6 +161,8 @@ def validate_upload(data: bytes, *, max_bytes: int) -> ValidatedUpload:
 
     if mime_type == MIME_PDF:
         page_count, has_text_layer, metadata = _inspect_pdf(data)
+        if page_count is not None and page_count > max_pages:
+            raise UploadRejected("TOO_MANY_PAGES")
     else:
         # A photo of a policy is one page and always needs OCR.
         page_count = 1
