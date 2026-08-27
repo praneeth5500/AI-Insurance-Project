@@ -54,6 +54,7 @@ Implementation notes: [`docs/PHASE_0_NOTES.md`](docs/PHASE_0_NOTES.md) ·
 [`docs/PHASE_7_NOTES.md`](docs/PHASE_7_NOTES.md) ·
 [`docs/PHASE_8_NOTES.md`](docs/PHASE_8_NOTES.md) ·
 [`docs/PHASE_16_NOTES.md`](docs/PHASE_16_NOTES.md) ·
+[`docs/PHASE_17_NOTES.md`](docs/PHASE_17_NOTES.md) ·
 [`docs/SPEC_ISSUES.md`](docs/SPEC_ISSUES.md)
 
 ## Build status
@@ -79,7 +80,7 @@ Built phase by phase from `docs/11_BUILD_PLAN.md`.
 | 14 — Claims readiness | ✅ Complete (behind `FEATURE_POLICY_DECODER`) |
 | 15 — Analytics & feedback | ✅ Complete |
 | 16 — Security & beta hardening | ✅ Complete (backups still owed — see notes) |
-| 17 — Friends & family beta | ⬜ Blocked on an email provider |
+| 17 — Friends & family beta | ✅ Ready to run (blocked on an email provider) |
 
 ## Repository layout
 
@@ -112,6 +113,15 @@ Put your address in `BETA_ALLOWLIST_EMAILS` in `.env`, then:
 
 ```bash
 make seed-allowlist
+```
+
+To see who holds an invite and who has actually used it — the "never signed
+in" count is what tells you the sign-in mail is not arriving — and to take
+access back, which also ends that person's live sessions:
+
+```bash
+make beta-status
+make revoke-access EMAILS=someone@example.com
 ```
 
 To load manually verified product data (the canonical catalogue ships empty):
